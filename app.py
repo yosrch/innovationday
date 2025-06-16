@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import streamlit as st
 import pandas as pd
 from databricks import sql
+import plotly.express as px
 
 # Load environment variables from .env (Streamlit Cloud will ignore this file in deployment)
 load_dotenv()
