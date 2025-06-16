@@ -143,6 +143,6 @@ st.line_chart(prod_fc.set_index("ds")["yhat"])
 
 
 # Placeholder: LLM suggest cross-sell or pricing tips
-    if st.button("Suggest Product Tips"):
-        prompt = f"For the product {top_prod}, suggest pricing or cross-sell strategies."
+if st.button("Suggest Product Tips"):
+    prompt = f"For the product {top_prod}, suggest pricing or cross-sell strategies."
         # ... call openai here and display ...
