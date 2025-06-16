@@ -15,15 +15,28 @@ DATABRICKS_TOKEN  = os.getenv("DATABRICKS_ACCESS_TOKEN")
 
 @st.cache_data(ttl=600)
 def load_table(query: str) -> pd.DataFrame:
-    with sql.connect(
+    # Open connection
+    conn = sql.connect(
         server_hostname=DATABRICKS_SERVER,
         http_path=DATABRICKS_PATH,
         access_token=DATABRICKS_TOKEN
-    ) as connection:
-        with connection.cursor() as cursor:
-            cursor.execute(query)
-            cols = [c[0] for c in cursor.description]
-            data = cursor.fetchall()
+    )
+    try:
+        cursor = conn.cursor()
+        cursor.execute(query)
+        cols = [c[0] for c in cursor.description]
+        data = cursor.fetchall()
+    finally:
+        # Attempt to close cursor & connection, ignoring any errors
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
+
     return pd.DataFrame(data, columns=cols)
 
 st.set_page_config(page_title="Demo Analytics", layout="wide")
