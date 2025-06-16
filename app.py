@@ -39,40 +39,104 @@ def load_table(query: str) -> pd.DataFrame:
 
     return pd.DataFrame(data, columns=cols)
 
-st.set_page_config(page_title="Demo Analytics", layout="wide")
+st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
 st.title("📊 Consumer Goods Analytics Demo")
 
-# Sidebar navigation
-page = st.sidebar.selectbox("Choose View", ["Overview", "Segmentation", "Product Insights"])
+# --- Create top-level tabs ---
+tabs = st.tabs(["Overview", "Segmentation", "Product Insights"])
 
-if page == "Overview":
-    st.header("Key Metrics")
-    # You can create a SQL view gold.kpi_view in Databricks or compute here:
+# --- Tab 1: Overview ---
+with tabs[0]:
+    st.header("Key Metrics & Forecast")
     df_kpis = load_table("""
-        SELECT
-          SUM(Total_Amount) AS total_revenue,
-          AVG(Total_Amount) AS avg_order_value,
-          COUNT(DISTINCT Customer_ID) AS unique_customers
-        FROM gold.fact_sales
+      SELECT
+        SUM(Total_Amount)  AS total_revenue,
+        AVG(Total_Amount)  AS avg_order_value,
+        COUNT(DISTINCT Customer_ID) AS unique_customers
+      FROM gold.fact_sales
     """)
-    st.metric("Total Revenue", f"€{df_kpis.total_revenue[0]:,.2f}")
-    st.metric("Avg Order Value", f"€{df_kpis.avg_order_value[0]:,.2f}")
-    st.metric("Unique Customers", df_kpis.unique_customers[0])
+    # Metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Revenue", f"€{df_kpis.total_revenue[0]:,.0f}")
+    col2.metric("Avg Order Value", f"€{df_kpis.avg_order_value[0]:,.2f}")
+    col3.metric("Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-elif page == "Segmentation":
+    # 30-day forecast
+    fc = load_table("SELECT ds, yhat, yhat_lower, yhat_upper FROM gold.sales_forecast ORDER BY ds")
+    fig_fc = px.line(fc, x="ds", y=["yhat", "yhat_lower", "yhat_upper"],
+                     labels={"value":"Sales", "ds":"Date"},
+                     title="30-Day Sales Forecast")
+    st.plotly_chart(fig_fc, use_container_width=True)
+
+    # Placeholder: MCP/LLM generate natural language summary & tips
+    st.subheader("🔍 Automated Insights")
+    if st.button("Generate Marketing Tips"):
+        prompt = (
+            f"Our KPIs are:\n"
+            f"- Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
+            f"- AOV: €{df_kpis.avg_order_value[0]:,.2f}\n"
+            f"- Customers: {df_kpis.unique_customers[0]}\n\n"
+            "Give me 3 actionable marketing tips."
+        )
+        resp = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role":"user","content":prompt}],
+            temperature=0.7,
+            max_tokens=150
+        )
+        tips = resp.choices[0].message.content.strip().split("\n")
+        for tip in tips:
+            st.write(f"- {tip}")
+
+# --- Tab 2: Segmentation ---
+with tabs[1]:
     st.header("Customer Segments")
-    seg_df = load_table("SELECT * FROM gold.customer_segments")
-    cust_df = load_table("SELECT * FROM gold.dim_customer")
-    merged = pd.merge(seg_df, cust_df, on="Customer_ID")
-    st.dataframe(merged)
+    seg   = load_table("SELECT * FROM gold.customer_segments")
+    cust  = load_table("SELECT * FROM gold.dim_customer")
+    merged = pd.merge(seg, cust, on="Customer_ID")
+    st.dataframe(merged, height=400)
 
-else:  # Product Insights
-    st.header("Top Products by Revenue")
-    prod_df = load_table("""
-        SELECT Product_Name, SUM(Total_Amount) AS Revenue
-        FROM gold.fact_sales
-        GROUP BY Product_Name
-        ORDER BY Revenue DESC
-        LIMIT 10
+    # Bar chart of segment sizes
+    seg_sizes = merged["segment"].value_counts().sort_index().reset_index()
+    seg_sizes.columns = ["segment", "count"]
+    fig_seg = px.bar(seg_sizes, x="segment", y="count",
+                     title="Customers per Segment",
+                     labels={"count":"# Customers","segment":"Segment ID"})
+    st.plotly_chart(fig_seg, use_container_width=True)
+
+    # Placeholder: LLM describe segment characteristics
+    if st.button("Describe Segments"):
+        prompt = "Describe the characteristics of each customer segment based on the data provided."
+        # ... call openai here and display ...
+
+# --- Tab 3: Product Insights ---
+with tabs[2]:
+    st.header("Top Products & Forecast")
+    prod = load_table("""
+      SELECT Product_Name, SUM(Total_Amount) AS revenue
+      FROM gold.fact_sales
+      GROUP BY Product_Name
+      ORDER BY revenue DESC
+      LIMIT 10
     """)
-    st.bar_chart(prod_df.set_index("Product_Name")["Revenue"])
+    fig_prod = px.bar(prod, x="Product_Name", y="revenue",
+                      title="Top 10 Products by Revenue")
+    st.plotly_chart(fig_prod, use_container_width=True)
+
+    # Product-level 7-day forecast example for top product
+    top_prod = prod.iloc[0]["Product_Name"]
+    st.markdown(f"**7-day forecast for:** {top_prod}")
+    prod_fc = load_table(f"""
+      SELECT ds, yhat 
+      FROM gold.sales_forecast
+      WHERE Product_Name = '{top_prod}'
+      ORDER BY ds
+      LIMIT 7
+    """)
+    fig_pfc = px.line(prod_fc, x="ds", y="yhat", labels={"yhat":"Forecast","ds":"Date"})
+    st.plotly_chart(fig_pfc, use_container_width=True)
+
+    # Placeholder: LLM suggest cross-sell or pricing tips
+    if st.button("Suggest Product Tips"):
+        prompt = f"For the product {top_prod}, suggest pricing or cross-sell strategies."
+        # ... call openai here and display ...
