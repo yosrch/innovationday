@@ -116,7 +116,7 @@ with tabs[2]:
     prod = load_table("""
       SELECT Product_Name, SUM(Total_Amount) AS revenue
       FROM gold.fact_sales
-      GROUP BY Product_Name
+      GROUP BY  Product_ID, Product_Name
       ORDER BY revenue DESC
       LIMIT 10
     """)
@@ -125,19 +125,24 @@ with tabs[2]:
     st.plotly_chart(fig_prod, use_container_width=True)
 
     # Product-level 7-day forecast example for top product
-    top_prod = prod.iloc[0]["Product_Name"]
-    st.markdown(f"**7-day forecast for:** {top_prod}")
-    prod_fc = load_table(f"""
-      SELECT ds, yhat 
-      FROM gold.sales_forecast
-      WHERE Product_Name = '{top_prod}'
-      ORDER BY ds
-      LIMIT 7
-    """)
-    fig_pfc = px.line(prod_fc, x="ds", y="yhat", labels={"yhat":"Forecast","ds":"Date"})
-    st.plotly_chart(fig_pfc, use_container_width=True)
+    # … inside with tabs[2]: …
 
-    # Placeholder: LLM suggest cross-sell or pricing tips
+# 7-day forecast example for top product (using Product_ID)
+top_prod_id = prod.iloc[0]["Product_ID"]
+top_prod_name = prod.iloc[0]["Product_Name"]
+st.markdown(f"**7-day forecast for:** {top_prod_name}")
+
+prod_fc = load_table(f"""
+  SELECT ds, yhat
+  FROM gold.product_forecast
+  WHERE Product_ID = '{top_prod_id}'
+  ORDER BY ds
+""")
+prod_fc["ds"] = pd.to_datetime(prod_fc["ds"])  # ensure correct dtype
+st.line_chart(prod_fc.set_index("ds")["yhat"])
+
+
+# Placeholder: LLM suggest cross-sell or pricing tips
     if st.button("Suggest Product Tips"):
         prompt = f"For the product {top_prod}, suggest pricing or cross-sell strategies."
         # ... call openai here and display ...
