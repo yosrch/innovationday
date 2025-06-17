@@ -257,13 +257,14 @@ with tabs[2]:
 
 
 # If you want to let Claude suggest strategies per category:
-    if st.button("Generate ABC‐Based Product Strategies"):
-        # Build prompt from prod_abc DataFrame
+    st.subheader("⚙️ ABC-Based Product Strategies")
+    if st.button("Generate ABC-Based Product Strategies"):
+        # Build the prompt from prod_abc DataFrame
         prompt = (
             "We have these product categories based on ABC analysis:\n"
             + "\n".join(
                 f"- {row['Product_Name']}: Category {row['ABC_Category']}, Revenue €{row['revenue']:,}"
-                for row in prod_abc.iterrows()
+                for _, row in prod_abc.iterrows()   # <-- unpack index, row
             )
             + "\n\nFor each category (A, B, C), recommend pricing or promotional strategies."
         )
@@ -294,8 +295,6 @@ with tabs[2]:
         for line in text.split("\n"):
             if line.strip():
                 st.write(f"- {line.strip()}")
-
-
 
 
 
