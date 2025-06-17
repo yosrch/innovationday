@@ -257,7 +257,6 @@ with tabs[2]:
 
 
 # If you want to let Claude suggest strategies per category:
-    st.subheader("⚙️ ABC-Based Product Strategies")
     if st.button("Generate ABC-Based Product Strategies"):
         # Build the prompt from prod_abc DataFrame
         prompt = (
@@ -279,24 +278,35 @@ with tabs[2]:
             ]
         }
 
-        try:
-            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
-            if r.status_code != 200:
-                st.error(f"Invocation failed with status {r.status_code}")
-                st.code(r.text, language="json")
+        # Show a spinner while waiting
+        with st.spinner("Generating strategies (this may take up to 2 minutes)…"):
+            try:
+                r = requests.post(
+                    CLAUDE_URL,
+                    json=body,
+                    headers=headers,
+                    timeout=120  # <-- give it up to two minutes
+                )
+            except requests.exceptions.ReadTimeout:
+                st.error("The request timed out (took over 2 minutes). Try again or switch to a lighter model.")
                 st.stop()
-            resp_json = r.json()
-            text = resp_json["choices"][0]["message"]["content"]
-        except Exception as e:
-            st.error("Failed to generate product strategies via Claude.")
-            st.exception(e)
+            except Exception as e:
+                st.error("Failed to generate product strategies via Claude.")
+                st.exception(e)
+                st.stop()
+
+        # Now check the status code
+        if r.status_code != 200:
+            st.error(f"Invocation failed with status {r.status_code}")
+            st.code(r.text, language="json")
             st.stop()
+
+        resp_json = r.json()
+        text = resp_json["choices"][0]["message"]["content"]
 
         for line in text.split("\n"):
             if line.strip():
                 st.write(f"- {line.strip()}")
-
-
 
 
 
