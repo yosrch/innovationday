@@ -4,9 +4,11 @@ import streamlit as st
 import pandas as pd
 from databricks import sql
 import plotly.express as px
+import openai
 
 # Load environment variables
 load_dotenv()
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
@@ -37,7 +39,7 @@ st.title("📊 Consumer Goods Analytics Demo")
 # Create top-level tabs
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights"])
 
-# Tab 1: Overview
+# --- Tab 1: Overview ---
 with tabs[0]:
     st.header("Key Metrics & Forecast")
     df_kpis = load_table("""
@@ -59,15 +61,49 @@ with tabs[0]:
       ORDER BY ds
     """)
     fig_fc = px.line(
-        fc, x="ds", y=["yhat", "yhat_lower", "yhat_upper"],
-        labels={"value":"Sales", "ds":"Date"},
-        title="30-Day Sales Forecast"
+        fc,
+        x="ds",
+        y=["yhat", "yhat_lower", "yhat_upper"],
+        labels={"value": "Sales (€)", "ds": "Date"},
+        title="30-Day Sales Forecast",
+        template="plotly_white"
+    )
+    # Rename legend entries
+    fig_fc.for_each_trace(lambda t: t.update(name={
+        "yhat": "Forecast",
+        "yhat_lower": "Lower Bound",
+        "yhat_upper": "Upper Bound"
+    }[t.name]))
+    # Format hover text
+    fig_fc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}")
+    fig_fc.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Forecasted Revenue (€)",
+        legend_title="Series"
     )
     st.plotly_chart(fig_fc, use_container_width=True)
 
-    # TODO: Embed MCP/LLM marketing tips here
+    # OpenAI-powered marketing tips
+    st.subheader("🔍 Automated Insights")
+    if st.button("Generate Marketing Tips"):
+        prompt = (
+            f"Our KPIs are:\n"
+            f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
+            f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
+            f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
+            "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
+        )
+        resp = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=200
+        )
+        tips = resp.choices[0].message.content.strip().split("\n")
+        for tip in tips:
+            st.write(f"- {tip}")
 
-# Tab 2: Segmentation
+# --- Tab 2: Segmentation ---
 with tabs[1]:
     st.header("Customer Segments")
     seg  = load_table("SELECT * FROM gold.customer_segments")
@@ -84,15 +120,21 @@ with tabs[1]:
         .reset_index(name="count")
     )
     fig_seg = px.bar(
-        seg_sizes, x="segment", y="count",
+        seg_sizes,
+        x="segment",
+        y="count",
+        labels={"segment": "Segment ID", "count": "# Customers"},
         title="Customers per Segment",
-        labels={"count":"# Customers","segment":"Segment ID"}
+        template="plotly_white"
+    )
+    fig_seg.update_traces(hovertemplate="%{y} customers<br>Segment %{x}")
+    fig_seg.update_layout(
+        xaxis_title="Segment ID",
+        yaxis_title="Number of Customers"
     )
     st.plotly_chart(fig_seg, use_container_width=True)
 
-    # TODO: Embed MCP/LLM segment descriptions here
-
-# Tab 3: Product Insights
+# --- Tab 3: Product Insights ---
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
@@ -105,15 +147,24 @@ with tabs[2]:
       LIMIT 10
     """)
     fig_prod = px.bar(
-        prod, x="Product_Name", y="revenue",
-        title="Top 10 Products by Revenue"
+        prod,
+        x="Product_Name",
+        y="revenue",
+        labels={"Product_Name": "Product", "revenue": "Total Revenue (€)"},
+        title="Top 10 Products by Revenue",
+        template="plotly_white"
+    )
+    fig_prod.update_traces(hovertemplate="%{y:,.0f} €<br>%{x}")
+    fig_prod.update_layout(
+        xaxis_title="Product",
+        yaxis_title="Revenue (€)"
     )
     st.plotly_chart(fig_prod, use_container_width=True)
 
     # 7-day forecast for the top product
     top_prod_id   = prod.iloc[0]["Product_ID"]
     top_prod_name = prod.iloc[0]["Product_Name"]
-    st.markdown(f"**7-day forecast for:** {top_prod_name}")
+    st.markdown(f"**7-Day Sales Forecast for {top_prod_name}**")
 
     prod_fc = load_table(f"""
       SELECT ds, yhat
@@ -122,6 +173,17 @@ with tabs[2]:
       ORDER BY ds
     """)
     prod_fc["ds"] = pd.to_datetime(prod_fc["ds"])
-    st.line_chart(prod_fc.set_index("ds")["yhat"])
-
-    # TODO: Embed MCP/LLM product tips here
+    fig_pfc = px.line(
+        prod_fc,
+        x="ds",
+        y="yhat",
+        labels={"ds": "Date", "yhat": f"Forecasted Sales (€)"},
+        title=f"7-Day Sales Forecast for {top_prod_name}",
+        template="plotly_white"
+    )
+    fig_pfc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}", name="Forecast")
+    fig_pfc.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Forecasted Sales (€)"
+    )
+    st.plotly_chart(fig_pfc, use_container_width=True)
