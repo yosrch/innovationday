@@ -101,15 +101,19 @@ with tabs[0]:
             "Content-Type": "application/json"
         }
         body = {
-            "inputs": [ prompt ]
+            "dataframe_split": {
+                "columns": ["inputs"],
+                "data": [[prompt]]
+            }
         }
         
 
         try:
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
             r.raise_for_status()
-            outputs = r.json()
-            text = output[0]
+            resp_json = r.json()
+            # The model output will be in "predictions"[0]
+            text = resp_json["predictions"][0]
         except Exception as e:
             st.error("Failed to generate tips. Please try again later.")
             st.exception(e)
