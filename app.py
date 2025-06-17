@@ -102,7 +102,7 @@ with tabs[0]:
         }
         body = {
             "messages": [
-                {"role": "user", "content":  "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."}
+                {"role": "user", "content":  prompt}
             ]
         }
         
@@ -115,7 +115,8 @@ with tabs[0]:
                 st.code(r.text, language="json")
                 st.stop()
             resp_json = r.json()
-            text = r.text #resp_json["predictions"][0]
+            st.write(f"- {r.text}")
+            text = resp_json["choices"][0]["message"]["content"]
         except Exception as e:
             st.error("Failed to generate tips. Please try again later.")
             st.exception(e)
