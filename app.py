@@ -103,7 +103,7 @@ with tabs[0]:
                 max_tokens=200
             )
         except Exception:
-            from openai.error import RateLimitError
+            
             st.warning("GPT-4.1 unavailable; falling back to GPT-3.5-turbo-16k…")
             resp = client.chat.completions.create(
                 model="gpt-3.5-turbo-16k",
