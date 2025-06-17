@@ -211,9 +211,8 @@ with tabs[2]:
     )
     st.plotly_chart(fig_pfc, use_container_width=True)
 
-from st_aggrid import AgGrid, GridOptionsBuilder
 
- # 1) Load ABC classifications
+    # 1) Load ABC classifications
     prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
 
     st.subheader("📦 ABC Classification of Top Products")
