@@ -87,39 +87,39 @@ with tabs[0]:
 
     # OpenAI-powered marketing tips
  st.subheader("🔍 Automated Insights")
-    if st.button("Generate Marketing Tips"):
-        prompt = (
-            f"Our KPIs are:\n"
-            f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
-            f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
-            f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
-            "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
+if st.button("Generate Marketing Tips"):
+    prompt = (
+        f"Our KPIs are:\n"
+        f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
+        f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
+        f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
+        "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
+    )
+    try:
+        resp = client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=200
         )
-        try:
+    except Exception as e:
+        # If it's a rate-limit error, fallback to gpt-3.5-turbo
+        if e.__class__.__name__ == "RateLimitError":
+            st.warning("GPT-4 is currently rate-limited. Falling back to GPT-3.5-turbo…")
             resp = client.chat.completions.create(
-                model="gpt-4.1",
+                model="gpt-3.5-turbo",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.7,
                 max_tokens=200
             )
-        except Exception as e:
-            # If it's a rate-limit error, fallback to gpt-3.5-turbo
-            if e.__class__.__name__ == "RateLimitError":
-                st.warning("GPT-4 is currently rate-limited. Falling back to GPT-3.5-turbo…")
-                resp = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=200
-                )
-            else:
+        else:
                 st.error("An error occurred generating tips. Please try again later.")
                 raise
 
-        text = resp.choices[0].message.content
-        tips = [t for t in text.strip().split("\n") if t]
-        for tip in tips:
-            st.write(f"- {tip}")
+    text = resp.choices[0].message.content
+    tips = [t for t in text.strip().split("\n") if t]
+    for tip in tips:
+        st.write(f"- {tip}")
 
 # --- Tab 2: Segmentation ---
 with tabs[1]:
