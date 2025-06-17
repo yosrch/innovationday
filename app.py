@@ -88,7 +88,6 @@ with tabs[0]:
 
     # OpenAI-powered marketing tips
     st.subheader("🔍 Automated Insights")
-    st.write(f"CLAUDE_URL- {CLAUDE_URL}")
     if st.button("Generate Marketing Tips"):
         prompt = (
             f"Our KPIs are:\n"
@@ -103,7 +102,7 @@ with tabs[0]:
         }
         body = {
             "messages": [
-                {"role": "user", "content": prompt}
+                {"role": "user", "content":  "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."}
             ]
         }
         
