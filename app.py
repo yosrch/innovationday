@@ -101,16 +101,15 @@ with tabs[0]:
             "Content-Type": "application/json"
         }
         body = {
-            "inputs": prompt,
-            # your serving may support parameters like temperature:
-            "parameters": {"temperature": 0.5, "max_tokens": 200}
-            }
+            "inputs": [ prompt ]
+        }
         
 
         try:
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
             r.raise_for_status()
-            text = r.json().get("outputs") or r.json().get("choices")[0]["text"]
+            outputs = r.json()
+            text = output[0]
         except Exception as e:
             st.error("Failed to generate tips. Please try again later.")
             st.exception(e)
