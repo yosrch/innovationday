@@ -3,4 +3,4 @@ databricks-sql-connector
 pandas
 python-dotenv
 plotly
-openai>=1.0.0
+requests

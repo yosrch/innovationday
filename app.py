@@ -4,13 +4,14 @@ import streamlit as st
 import pandas as pd
 from databricks import sql
 import plotly.express as px
-from openai import OpenAI
+import requests
 
 # Load environment variables
 load_dotenv()
 
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize CLAUDE client
+CLAUDE_URL   = os.getenv("CLAUDE_ENDPOINT_URL")
+CLAUDE_TOKEN = os.getenv("CLAUDE_BEARER_TOKEN")
 
 # Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
@@ -95,23 +96,29 @@ with tabs[0]:
             f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
             "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
         )
+        headers = {
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        body = {
+            "inputs": prompt,
+            # your serving may support parameters like temperature:
+            "parameters": {"temperature": 0.5, "max_tokens": 200}
+            }
+        
+
         try:
-            resp = client.chat.completions.create(
-                model="gpt-3.5-turbo-16k",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-                max_tokens=200
-            )
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
+            r.raise_for_status()
+            text = r.json().get("outputs") or r.json().get("choices")[0]["text"]
         except Exception as e:
-            
             st.error("Failed to generate tips. Please try again later.")
             st.exception(e)
             st.stop()
             
-        text = resp.choices[0].message.content or ""
-        tips = [line.strip() for line in text.split("\n") if line.strip()]
-        for tip in tips:
-            st.write(f"- {tip}")
+        for line in text.split("\n"):
+            if line.strip():
+                st.write(f"- {line.strip()}")
 
 # --- Tab 2: Segmentation ---
 with tabs[1]:
