@@ -110,9 +110,12 @@ with tabs[0]:
 
         try:
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
-            r.raise_for_status()
+            # don’t raise here; instead inspect the body on error
+            if r.status_code != 200:
+                st.error(f"Invocation failed with status {r.status_code}")
+                st.code(r.text, language="json")
+                st.stop()
             resp_json = r.json()
-            # The model output will be in "predictions"[0]
             text = resp_json["predictions"][0]
         except Exception as e:
             st.error("Failed to generate tips. Please try again later.")
