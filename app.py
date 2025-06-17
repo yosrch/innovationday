@@ -88,6 +88,7 @@ with tabs[0]:
 
     # OpenAI-powered marketing tips
     st.subheader("🔍 Automated Insights")
+    st.write(f"CLAUDE_URL- {CLAUDE_URL}")
     if st.button("Generate Marketing Tips"):
         prompt = (
             f"Our KPIs are:\n"
