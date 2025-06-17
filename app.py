@@ -211,4 +211,94 @@ with tabs[2]:
     )
     st.plotly_chart(fig_pfc, use_container_width=True)
 
+from st_aggrid import AgGrid, GridOptionsBuilder
+
+ # 1) Load ABC classifications
+    prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
+
+    st.subheader("📦 ABC Classification of Top Products")
+
+    # 2) Create two columns: left for grid, right for treemap
+    grid_col, tree_col = st.columns([2, 1])
+
+    # 3) In the left column, show AgGrid
+    with grid_col:
+        from st_aggrid import AgGrid, GridOptionsBuilder
+
+        gb = GridOptionsBuilder.from_dataframe(prod_abc)
+        gb.configure_default_column(filterable=True, sortable=True, resizable=True)
+        grid_opts = gb.build()
+
+        AgGrid(
+            prod_abc,
+            gridOptions=grid_opts,
+            enable_enterprise_modules=False,
+            theme="alpine",
+            height=400
+        )
+
+    # 4) In the right column, show a Plotly treemap
+    with tree_col:
+        import plotly.express as px
+
+        fig_treemap = px.treemap(
+            prod_abc,
+            path=["ABC_Category", "Product_Name"],
+            values="revenue",
+            color="ABC_Category",
+            color_discrete_map={"A":"gold","B":"lightblue","C":"lightgray"},
+            title="Revenue by ABC Category"
+        )
+        fig_treemap.update_layout(margin=dict(l=0, r=0, t=30, b=0))
+        st.plotly_chart(fig_treemap, use_container_width=True)
+
+
+
+
+
+
+# If you want to let Claude suggest strategies per category:
+    if st.button("Generate ABC‐Based Product Strategies"):
+        # Build prompt from prod_abc DataFrame
+        prompt = (
+            "We have these product categories based on ABC analysis:\n"
+            + "\n".join(
+                f"- {row['Product_Name']}: Category {row['ABC_Category']}, Revenue €{row['revenue']:,}"
+                for row in prod_abc.itertuples()
+            )
+            + "\n\nFor each category (A, B, C), recommend pricing or promotional strategies."
+        )
+
+        headers = {
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        body = {
+            "messages": [
+                {"role": "user", "content": prompt}
+            ]
+        }
+
+        try:
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
+            if r.status_code != 200:
+                st.error(f"Invocation failed with status {r.status_code}")
+                st.code(r.text, language="json")
+                st.stop()
+            resp_json = r.json()
+            text = resp_json["choices"][0]["message"]["content"]
+        except Exception as e:
+            st.error("Failed to generate product strategies via Claude.")
+            st.exception(e)
+            st.stop()
+
+        for line in text.split("\n"):
+            if line.strip():
+                st.write(f"- {line.strip()}")
+
+
+
+
+
+
 
