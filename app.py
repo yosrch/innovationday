@@ -103,11 +103,7 @@ with tabs[0]:
         body = {
             "messages": [
                 {"role": "user", "content": prompt}
-            ],
-            "parameters": {
-                "temperature": 0.5,
-                "max_tokens": 200
-            }
+            ]
         }
         
 
