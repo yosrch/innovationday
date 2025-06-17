@@ -263,7 +263,7 @@ with tabs[2]:
             "We have these product categories based on ABC analysis:\n"
             + "\n".join(
                 f"- {row['Product_Name']}: Category {row['ABC_Category']}, Revenue €{row['revenue']:,}"
-                for row in prod_abc.itertuples()
+                for row in prod_abc.iterrows()
             )
             + "\n\nFor each category (A, B, C), recommend pricing or promotional strategies."
         )
