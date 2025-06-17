@@ -86,7 +86,7 @@ with tabs[0]:
     st.plotly_chart(fig_fc, use_container_width=True)
 
     # OpenAI-powered marketing tips
-    st.subheader("🔍 Automated Insights")
+ st.subheader("🔍 Automated Insights")
     if st.button("Generate Marketing Tips"):
         prompt = (
             f"Our KPIs are:\n"
@@ -95,14 +95,29 @@ with tabs[0]:
             f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
             "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
         )
-        resp = client.chat.completions.create(
-            model="gpt-4.1",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=200
-        )
+        try:
+            resp = client.chat.completions.create(
+                model="gpt-4.1",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                max_tokens=200
+            )
+        except Exception as e:
+            # If it's a rate-limit error, fallback to gpt-3.5-turbo
+            if e.__class__.__name__ == "RateLimitError":
+                st.warning("GPT-4 is currently rate-limited. Falling back to GPT-3.5-turbo…")
+                resp = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.7,
+                    max_tokens=200
+                )
+            else:
+                st.error("An error occurred generating tips. Please try again later.")
+                raise
+
         text = resp.choices[0].message.content
-        tips = text.strip().split("\n")
+        tips = [t for t in text.strip().split("\n") if t]
         for tip in tips:
             st.write(f"- {tip}")
 
