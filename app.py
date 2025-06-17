@@ -4,11 +4,13 @@ import streamlit as st
 import pandas as pd
 from databricks import sql
 import plotly.express as px
-import openai
+from openai import OpenAI
 
 # Load environment variables
 load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Initialize the new OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
@@ -68,13 +70,11 @@ with tabs[0]:
         title="30-Day Sales Forecast",
         template="plotly_white"
     )
-    # Rename legend entries
     fig_fc.for_each_trace(lambda t: t.update(name={
         "yhat": "Forecast",
         "yhat_lower": "Lower Bound",
         "yhat_upper": "Upper Bound"
     }[t.name]))
-    # Format hover text
     fig_fc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}")
     fig_fc.update_layout(
         xaxis_title="Date",
@@ -93,13 +93,14 @@ with tabs[0]:
             f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
             "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
         )
-        resp = openai.ChatCompletion.create(
+        resp = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=200
         )
-        tips = resp.choices[0].message.content.strip().split("\n")
+        text = resp.choices[0].message.content
+        tips = text.strip().split("\n")
         for tip in tips:
             st.write(f"- {tip}")
 
@@ -111,7 +112,6 @@ with tabs[1]:
     merged = pd.merge(seg, cust, on="Customer_ID")
     st.dataframe(merged, height=400)
 
-    # Segment size bar chart
     seg_sizes = (
         merged["segment"]
         .value_counts()
@@ -138,7 +138,6 @@ with tabs[1]:
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
-    # Top 10 products by revenue (include Product_ID)
     prod = load_table("""
       SELECT Product_ID, Product_Name, SUM(Total_Amount) AS revenue
       FROM gold.fact_sales
@@ -161,7 +160,6 @@ with tabs[2]:
     )
     st.plotly_chart(fig_prod, use_container_width=True)
 
-    # 7-day forecast for the top product
     top_prod_id   = prod.iloc[0]["Product_ID"]
     top_prod_name = prod.iloc[0]["Product_Name"]
     st.markdown(f"**7-Day Sales Forecast for {top_prod_name}**")
@@ -187,3 +185,4 @@ with tabs[2]:
         yaxis_title="Forecasted Sales (€)"
     )
     st.plotly_chart(fig_pfc, use_container_width=True)
+
