@@ -13,11 +13,6 @@ load_dotenv()
 # Initialize the new OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 2) Debug: list available models *after* client is ready
-available = client.models.list()
-st.write("Available models:", [m.id for m in available.data])
-
-
 
 # Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
@@ -101,7 +96,7 @@ with tabs[0]:
             "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
         )
         resp = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4.1",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=200
