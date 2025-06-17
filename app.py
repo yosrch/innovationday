@@ -101,9 +101,10 @@ with tabs[0]:
             "Content-Type": "application/json"
         }
         body = {
-            "dataframe_split": {
-                "columns": ["inputs"],
-                "data": [[prompt]]
+            "prompt": prompt,
+            "parameters": {
+                "temperature": 0.5,
+                "max_tokens": 200
             }
         }
         
