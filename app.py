@@ -5,6 +5,8 @@ import pandas as pd
 from databricks import sql
 import plotly.express as px
 from openai import OpenAI
+available = client.models.list()
+st.write("Available models:", [m.id for m in available.data])
 
 # Load environment variables
 load_dotenv()
@@ -94,7 +96,7 @@ with tabs[0]:
             "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
         )
         resp = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=200
