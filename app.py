@@ -31,8 +31,10 @@ def load_table(query: str) -> pd.DataFrame:
         data = cursor.fetchall()
     finally:
         for obj in (cursor, conn):
-            try: obj.close()
-            except: pass
+            try:
+                obj.close()
+            except:
+                pass
     return pd.DataFrame(data, columns=cols)
 
 st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
@@ -100,19 +102,16 @@ with tabs[0]:
                 temperature=0.7,
                 max_tokens=200
             )
-        except Exception as e:
+        except Exception:
             from openai.error import RateLimitError
-            if isinstance(e, RateLimitError):
-                st.warning("GPT-4.1 is rate-limited. Falling back to GPT-3.5-turbo-16k…")
-                resp = client.chat.completions.create(
-                    model="gpt-3.5-turbo-16k",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=200
-                )
-            else:
-                st.error("Error generating tips; please try again later.")
-                raise
+            st.warning("GPT-4.1 unavailable; falling back to GPT-3.5-turbo-16k…")
+            resp = client.chat.completions.create(
+                model="gpt-3.5-turbo-16k",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
+                 max_tokens=200
+            )
+            
         text = resp.choices[0].message.content or ""
         tips = [line.strip() for line in text.split("\n") if line.strip()]
         for tip in tips:
@@ -125,10 +124,82 @@ with tabs[1]:
     cust = load_table("SELECT * FROM gold.dim_customer")
     merged = pd.merge(seg, cust, on="Customer_ID")
     st.dataframe(merged, height=400)
-    # ... rest of Segmentation chart code ...
+
+    # Segment size bar chart
+    seg_sizes = (
+        merged["segment"]
+        .value_counts()
+        .sort_index()
+        .rename_axis("segment")
+        .reset_index(name="count")
+    )
+    fig_seg = px.bar(
+        seg_sizes,
+        x="segment",
+        y="count",
+        labels={"segment": "Segment ID", "count": "# Customers"},
+        title="Customers per Segment",
+        template="plotly_white"
+    )
+    fig_seg.update_traces(hovertemplate="%{y} customers<br>Segment %{x}")
+    fig_seg.update_layout(
+        xaxis_title="Segment ID",
+        yaxis_title="Number of Customers"
+    )
+    st.plotly_chart(fig_seg, use_container_width=True)
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
-    # ... rest of Product Insights code ...
+
+    # Top 10 products by revenue (include Product_ID)
+    prod = load_table("""
+      SELECT Product_ID, Product_Name, SUM(Total_Amount) AS revenue
+      FROM gold.fact_sales
+      GROUP BY Product_ID, Product_Name
+      ORDER BY revenue DESC
+      LIMIT 10
+    """)
+    fig_prod = px.bar(
+        prod,
+        x="Product_Name",
+        y="revenue",
+        labels={"Product_Name": "Product", "revenue": "Total Revenue (€)"},
+        title="Top 10 Products by Revenue",
+        template="plotly_white"
+    )
+    fig_prod.update_traces(hovertemplate="%{y:,.0f} €<br>%{x}")
+    fig_prod.update_layout(
+        xaxis_title="Product",
+        yaxis_title="Revenue (€)"
+    )
+    st.plotly_chart(fig_prod, use_container_width=True)
+
+    # 7-day forecast for the top product
+    top_prod_id   = prod.iloc[0]["Product_ID"]
+    top_prod_name = prod.iloc[0]["Product_Name"]
+    st.markdown(f"**7-Day Sales Forecast for {top_prod_name}**")
+
+    prod_fc = load_table(f"""
+      SELECT ds, yhat
+      FROM gold.product_forecast
+      WHERE Product_ID = '{top_prod_id}'
+      ORDER BY ds
+    """)
+    prod_fc["ds"] = pd.to_datetime(prod_fc["ds"])
+    fig_pfc = px.line(
+        prod_fc,
+        x="ds",
+        y="yhat",
+        labels={"ds": "Date", "yhat": f"Forecasted Sales (€)"},
+        title=f"7-Day Sales Forecast for {top_prod_name}",
+        template="plotly_white"
+    )
+    fig_pfc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}", name="Forecast")
+    fig_pfc.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Forecasted Sales (€)"
+    )
+    st.plotly_chart(fig_pfc, use_container_width=True)
+
 
