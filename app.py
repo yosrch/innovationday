@@ -5,14 +5,19 @@ import pandas as pd
 from databricks import sql
 import plotly.express as px
 from openai import OpenAI
-available = client.models.list()
-st.write("Available models:", [m.id for m in available.data])
+
 
 # Load environment variables
 load_dotenv()
 
 # Initialize the new OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# 2) Debug: list available models *after* client is ready
+available = client.models.list()
+st.write("Available models:", [m.id for m in available.data])
+
+
 
 # Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
