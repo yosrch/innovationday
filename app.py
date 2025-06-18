@@ -179,15 +179,14 @@ with tabs[1]:
     # 2) Describe Customer Segments
     st.subheader("👥 Describe Customer Segments")
     if st.button("Describe Customer Segments"):
-        # Build prompt lines
         lines = []
         for _, r in seg_stats.iterrows():
             pct = r["count"] / total_customers * 100
             lines.append(
-                f"Segment {int(r.segment)}: {int(r.count)} customers "
-                f"({pct:.1f}%), Avg age {r.avg_age}, {r.pct_male:.1f}% male, "
-                f"{r.avg_orders_per_customer:.2f} orders/customer, "
-                f"Avg order €{r.avg_order_value:.2f}"
+                f"Segment {int(r['segment'])}: {int(r['count'])} customers "
+                f"({pct:.1f}%), Avg age {r['avg_age']}, {r['pct_male']:.1f}% male, "
+                f"{r['avg_orders_per_customer']:.2f} orders/customer, "
+                f"Avg order €{r['avg_order_value']:.2f}"
             )
         prompt = (
             "Here are our customer segments:\n"
@@ -195,10 +194,7 @@ with tabs[1]:
             + "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
         )
 
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
         body = {"messages": [{"role": "user", "content": prompt}]}
 
         with st.spinner("Generating segment profiles…"):
@@ -224,9 +220,9 @@ with tabs[1]:
         prompt = (
             "We have the following customer segments:\n"
             + "\n".join(
-                f"- Segment {int(r.segment)}: {int(r.count)} customers, "
-                f"{r.avg_orders_per_customer:.2f} orders/customer, "
-                f"Avg order €{r.avg_order_value:.2f}"
+                f"- Segment {int(r['segment'])}: {int(r['count'])} customers, "
+                f"{r['avg_orders_per_customer']:.2f} orders/customer, "
+                f"Avg order €{r['avg_order_value']:.2f}"
                 for _, r in seg_stats.iterrows()
             )
             + "\n\nFor each segment, recommend its top marketing channel, "
@@ -234,10 +230,7 @@ with tabs[1]:
               "product category to emphasize. Give 2 bullet points per segment."
         )
 
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
         body = {"messages": [{"role": "user", "content": prompt}]}
 
         with st.spinner("Generating segment strategies…"):
