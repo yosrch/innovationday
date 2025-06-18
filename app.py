@@ -486,4 +486,6 @@ with tabs[3]:
 
         # 4) record & display assistant reply
         st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
+        # 5) immediately render it right now
+        st.chat_message("assistant").write(assistant_reply)
       
