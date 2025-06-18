@@ -156,18 +156,21 @@ with tabs[1]:
         yaxis_title="Number of Customers"
     )
     st.plotly_chart(fig_seg, use_container_width=True)
-#Customer Segment AI
+    # 1) Compute segment-level statistics, including purchase behavior
     seg_stats = load_table("""
       SELECT
         s.segment,
-        COUNT(*) AS count,
-        ROUND(AVG(c.Age),1)                                    AS avg_age,
-        ROUND(100.0 * SUM(CASE WHEN c.Gender='Male' THEN 1 ELSE 0 END) / COUNT(*),1) AS pct_male,
-        ROUND(AVG(c.Frequency_of_Purchase),2)                   AS avg_freq,
-        ROUND(AVG(c.Purchase_Amount),2)                         AS avg_amount
+        COUNT(DISTINCT c.Customer_ID) AS count,
+        ROUND(AVG(c.Age),1) AS avg_age,
+        ROUND(100.0 * SUM(CASE WHEN c.Gender='Male' THEN 1 ELSE 0 END) / COUNT(DISTINCT c.Customer_ID),1)
+          AS pct_male,
+        ROUND(AVG(f.Total_Amount),2) AS avg_order_value,
+        ROUND(COUNT(f.Customer_ID) / COUNT(DISTINCT c.Customer_ID),2) AS avg_orders_per_customer
       FROM gold.customer_segments s
       JOIN gold.dim_customer c
         ON s.Customer_ID = c.Customer_ID
+      JOIN gold.fact_sales f
+        ON c.Customer_ID = f.Customer_ID
       GROUP BY s.segment
       ORDER BY s.segment
     """)
@@ -176,14 +179,15 @@ with tabs[1]:
     # 2) Describe Customer Segments
     st.subheader("👥 Describe Customer Segments")
     if st.button("Describe Customer Segments"):
-        # Build the prompt
+        # Build prompt lines
         lines = []
         for _, r in seg_stats.iterrows():
             pct = r["count"] / total_customers * 100
             lines.append(
                 f"Segment {int(r.segment)}: {int(r.count)} customers "
                 f"({pct:.1f}%), Avg age {r.avg_age}, {r.pct_male:.1f}% male, "
-                f"{r.avg_freq:.1f} purchases/mo, Avg order €{r.avg_amount:.2f}"
+                f"{r.avg_orders_per_customer:.2f} orders/customer, "
+                f"Avg order €{r.avg_order_value:.2f}"
             )
         prompt = (
             "Here are our customer segments:\n"
@@ -195,7 +199,7 @@ with tabs[1]:
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {"messages": [{"role":"user","content":prompt}]}
+        body = {"messages": [{"role": "user", "content": prompt}]}
 
         with st.spinner("Generating segment profiles…"):
             try:
@@ -217,11 +221,14 @@ with tabs[1]:
     # 3) Generate Segment Strategies
     st.subheader("🎯 Segment-Specific Strategies")
     if st.button("Generate Segment Strategies"):
-        # Build the prompt
         prompt = (
             "We have the following customer segments:\n"
-            + "\n".join(f"- Segment {int(r.segment)}: {int(r.count)} customers"
-                        for _, r in seg_stats.iterrows())
+            + "\n".join(
+                f"- Segment {int(r.segment)}: {int(r.count)} customers, "
+                f"{r.avg_orders_per_customer:.2f} orders/customer, "
+                f"Avg order €{r.avg_order_value:.2f}"
+                for _, r in seg_stats.iterrows()
+            )
             + "\n\nFor each segment, recommend its top marketing channel, "
               "an offer type (discount, bundle, free shipping), and which ABC "
               "product category to emphasize. Give 2 bullet points per segment."
@@ -231,7 +238,7 @@ with tabs[1]:
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {"messages": [{"role":"user","content":prompt}]}
+        body = {"messages": [{"role": "user", "content": prompt}]}
 
         with st.spinner("Generating segment strategies…"):
             try:
