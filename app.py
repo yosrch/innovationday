@@ -42,7 +42,7 @@ st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
 st.title("📊 Consumer Goods Analytics Demo")
 
 # Create top-level tabs
-tabs = st.tabs(["Overview", "Segmentation", "Product Insights"])
+tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # --- Tab 1: Overview ---
 with tabs[0]:
@@ -403,3 +403,87 @@ with tabs[2]:
 
 
 
+@st.cache_data(ttl=600)
+def get_data_context() -> str:
+    # 1) KPIs
+    df_kpis = load_table("""
+      SELECT
+        SUM(Total_Amount)  AS total_revenue,
+        AVG(Total_Amount)  AS avg_order_value,
+        COUNT(DISTINCT Customer_ID) AS unique_customers
+      FROM gold.fact_sales
+    """)
+    # 2) Segments
+    seg_sizes = load_table("""
+      SELECT segment, COUNT(*) AS count
+      FROM gold.customer_segments
+      GROUP BY segment
+      ORDER BY segment
+    """)
+    # 3) ABC categories
+    prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
+
+    # Build a single string
+    context = (
+        f"KPI: Revenue €{df_kpis.total_revenue[0]:,.0f}, "
+        f"AOV €{df_kpis.avg_order_value[0]:,.2f}, "
+        f"Customers {df_kpis.unique_customers[0]:,}\n\n"
+        "Segments:\n"
+        + "\n".join(f"- {int(r.segment)}: {int(r['count']):,} customers"
+                    for _, r in seg_sizes.iterrows())
+        + "\n\nProduct ABC Categories:\n"
+        + ", ".join(f"{row.Product_Name}({row.ABC_Category})"
+                    for _, row in prod_abc.iterrows())
+    )
+    return context
+
+# --- Tab 4: Ask the Data ---
+with tabs[3]:
+    st.header("💬 Ask the Data")
+
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Render chat history
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).write(msg["content"])
+
+    # Collect user input
+    user_question = st.chat_input("Type your question about KPIs, segments or products…")
+    if user_question:
+        # 1) record user
+        st.session_state.messages.append({"role": "user", "content": user_question})
+
+        # 2) assemble prompt with cached context
+        data_context = get_data_context()
+        prompt = (
+            "You are a data analyst. Use ONLY the context below to answer the question.\n\n"
+            f"Context:\n{data_context}\n\n"
+            f"Question: {user_question}\n"
+            "Answer concisely, quoting any numbers exactly."
+        )
+
+        # 3) call Claude endpoint
+        headers = {
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        body = {"messages": [{"role": "user", "content": prompt}]}
+
+        with st.spinner("Thinking…"):
+            try:
+                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+                if r.status_code != 200:
+                    st.error(f"Invocation failed: {r.status_code}")
+                    st.code(r.text, language="json")
+                    st.stop()
+                assistant_reply = r.json()["choices"][0]["message"]["content"]
+            except Exception as e:
+                st.error("Failed to get a response.")
+                st.exception(e)
+                st.stop()
+
+        # 4) record & display assistant reply
+        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
+        st.experimental_rerun()
