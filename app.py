@@ -157,50 +157,53 @@ with tabs[1]:
     )
     st.plotly_chart(fig_seg, use_container_width=True)
 #Customer Segment AI
+    seg_stats = load_table("""
+      SELECT
+        s.segment,
+        COUNT(*) AS count,
+        ROUND(AVG(c.Age),1)                                    AS avg_age,
+        ROUND(100.0 * SUM(CASE WHEN c.Gender='Male' THEN 1 ELSE 0 END) / COUNT(*),1) AS pct_male,
+        ROUND(AVG(c.Frequency_of_Purchase),2)                   AS avg_freq,
+        ROUND(AVG(c.Purchase_Amount),2)                         AS avg_amount
+      FROM gold.customer_segments s
+      JOIN gold.dim_customer c
+        ON s.Customer_ID = c.Customer_ID
+      GROUP BY s.segment
+      ORDER BY s.segment
+    """)
+    total_customers = seg_stats["count"].sum()
+
+    # 2) Describe Customer Segments
     st.subheader("👥 Describe Customer Segments")
     if st.button("Describe Customer Segments"):
-        # 1. Compute segment metrics
-        seg_stats = load_table("""
-          SELECT
-            segment,
-            COUNT(*) AS count,
-            ROUND(AVG(Age),1) AS avg_age,
-            ROUND(100.0*SUM(CASE WHEN Gender='Male' THEN 1 ELSE 0 END)/COUNT(*),1) AS pct_male,
-            ROUND(AVG(Income_Level),2) AS avg_income,
-            ROUND(AVG(Frequency_of_Purchase),2) AS avg_freq,
-            ROUND(AVG(Purchase_Amount),2) AS avg_amount
-          FROM gold.dim_customer
-          JOIN gold.customer_segments USING(Customer_ID)
-          GROUP BY segment
-          ORDER BY segment
-        """)
-        total_customers = seg_stats["count"].sum()
-        # 2. Build prompt lines
+        # Build the prompt
         lines = []
         for _, r in seg_stats.iterrows():
             pct = r["count"] / total_customers * 100
             lines.append(
                 f"Segment {int(r.segment)}: {int(r.count)} customers "
                 f"({pct:.1f}%), Avg age {r.avg_age}, {r.pct_male:.1f}% male, "
-                f"Income €{r.avg_income:.0f}, {r.avg_freq:.1f} purchases/mo, "
-                f"Avg order €{r.avg_amount:.2f}"
+                f"{r.avg_freq:.1f} purchases/mo, Avg order €{r.avg_amount:.2f}"
             )
         prompt = (
             "Here are our customer segments:\n"
             + "\n".join(f"- {l}" for l in lines)
-            + "\n\nFor each segment, write a 1-2 sentence profile describing its key characteristics."
+            + "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
         )
 
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {"messages":[{"role":"user","content":prompt}]}
+        body = {"messages": [{"role":"user","content":prompt}]}
 
         with st.spinner("Generating segment profiles…"):
             try:
                 r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-                r.raise_for_status()
+                if r.status_code != 200:
+                    st.error(f"Invocation failed with status {r.status_code}")
+                    st.code(r.text, language="json")
+                    st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
             except Exception as e:
                 st.error("Failed to describe segments.")
@@ -211,32 +214,32 @@ with tabs[1]:
             if line.strip():
                 st.write(line.strip())
 
-
+    # 3) Generate Segment Strategies
     st.subheader("🎯 Segment-Specific Strategies")
     if st.button("Generate Segment Strategies"):
-        # We can reuse seg_stats & total_customers from above if cached, otherwise recompute:
-        # ... same seg_stats block as above ...
-
+        # Build the prompt
         prompt = (
             "We have the following customer segments:\n"
-            + "\n".join(f"- Segment {int(r.segment)}: {int(r.count)} customers" for _, r in seg_stats.iterrows())
-            + (
-                "\n\nFor each segment, recommend its top marketing channel, "
-                "an offer type (discount/bundle/free shipping), and which product "
-                "category (A/B/C) to emphasize. Give 2 bullet points per segment."
-            )
+            + "\n".join(f"- Segment {int(r.segment)}: {int(r.count)} customers"
+                        for _, r in seg_stats.iterrows())
+            + "\n\nFor each segment, recommend its top marketing channel, "
+              "an offer type (discount, bundle, free shipping), and which ABC "
+              "product category to emphasize. Give 2 bullet points per segment."
         )
 
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {"messages":[{"role":"user","content":prompt}]}
+        body = {"messages": [{"role":"user","content":prompt}]}
 
         with st.spinner("Generating segment strategies…"):
             try:
                 r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-                r.raise_for_status()
+                if r.status_code != 200:
+                    st.error(f"Invocation failed with status {r.status_code}")
+                    st.code(r.text, language="json")
+                    st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
             except Exception as e:
                 st.error("Failed to generate strategies.")
