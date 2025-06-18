@@ -458,19 +458,40 @@ with tabs[3]:
         # 2) assemble prompt with cached context
         data_context = get_data_context()
         prompt = (
-            "You are a data analyst. Use ONLY the context below to answer the question.\n\n"
             f"Context:\n{data_context}\n\n"
-            f"Question: {user_question}\n"
-            "Answer concisely, quoting any numbers exactly."
+            f"Question: {user_question}"
         )
 
-        # 3) call Claude endpoint
+        # 3) Prepare the 3-message chat payload
+        body = {
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert data analyst assistant. "
+                        "Answer in a concise, professional style with bullet highlights. "
+                        "Do not repeat the entire context; refer only to relevant facts."
+                    )
+                },
+                {
+                    "role": "assistant",
+                    "content": (
+                        "Question: What is our current average order value?\n"
+                        "Answer: The average order value is €1,284, reflecting strong upsell performance."
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {"messages": [{"role": "user", "content": prompt}]}
 
+        # 4) Invoke the Claude endpoint
         with st.spinner("Thinking…"):
             try:
                 r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
@@ -484,8 +505,6 @@ with tabs[3]:
                 st.exception(e)
                 st.stop()
 
-        # 4) record & display assistant reply
+        # 5) Record and render the assistant’s reply immediately
         st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
-        # 5) immediately render it right now
         st.chat_message("assistant").write(assistant_reply)
-      
