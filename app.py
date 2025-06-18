@@ -441,70 +441,67 @@ def get_data_context() -> str:
 with tabs[3]:
     st.header("💬 Ask the Data")
 
-    # Initialize chat history
+    # 1) Create a container for the chat bubbles
+    chat_container = st.container()
+
+    # 2) Pull or init the history
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Render chat history
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+    # 3) Function to render all messages
+    def render_history():
+        chat_container.empty()
+        for msg in st.session_state.messages:
+            chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # Collect user input
+    # Render existing history on first load
+    render_history()
+
+    # 4) Collect the user’s question
     user_question = st.chat_input("Type your question about KPIs, segments or products…")
     if user_question:
-        # 1) record user
+        # Record the user message
         st.session_state.messages.append({"role": "user", "content": user_question})
 
-        # 2) assemble prompt with cached context
+        # Build your prompt + call Claude (same as before)…
         data_context = get_data_context()
-        prompt = (
-            f"Context:\n{data_context}\n\n"
-            f"Question: {user_question}"
-        )
-
-        # 3) Prepare the 3-message chat payload
+        prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
         body = {
             "messages": [
                 {
                     "role": "system",
                     "content": (
-                        "You are an expert data analyst assistant. "
-                        "Answer in a concise, professional style with bullet highlights. "
-                        "Do not repeat the entire context; refer only to relevant facts."
-                    )
+                        "You are an expert data analyst assistant. Answer concisely in bullet points "
+                        "without repeating the full context."
+                    ),
                 },
                 {
                     "role": "assistant",
                     "content": (
                         "Question: What is our current average order value?\n"
                         "Answer: The average order value is €1,284, reflecting strong upsell performance."
-                    )
+                    ),
                 },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ]
         }
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-        # 4) Invoke the Claude endpoint
         with st.spinner("Thinking…"):
-            try:
-                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-                if r.status_code != 200:
-                    st.error(f"Invocation failed: {r.status_code}")
-                    st.code(r.text, language="json")
-                    st.stop()
-                assistant_reply = r.json()["choices"][0]["message"]["content"]
-            except Exception as e:
-                st.error("Failed to get a response.")
-                st.exception(e)
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            if r.status_code != 200:
+                st.error(f"Invocation failed: {r.status_code}")
+                st.code(r.text, language="json")
                 st.stop()
+            assistant_reply = r.json()["choices"][0]["message"]["content"]
 
-        # 5) Record and render the assistant’s reply immediately
-        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
-        st.chat_message("assistant").write(assistant_reply)
+        # Record the assistant reply
+        st.session_state.messages.append(
+            {"role": "assistant", "content": assistant_reply}
+        )
+
+        # 5) Re-render the entire history in our container
+        render_history()
