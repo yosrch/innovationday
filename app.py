@@ -486,4 +486,4 @@ with tabs[3]:
 
         # 4) record & display assistant reply
         st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
-        st.experimental_rerun()
+      
