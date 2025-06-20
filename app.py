@@ -195,7 +195,7 @@ with tabs[1]:
     # 3) Display table & chart side‐by‐side
     left, right = st.columns([2, 1], gap="small")
     with left:
-        st.dataframe(merged, height=300)
+        st.dataframe(merged, height=400)
     with right:
         # add identical top padding so the chart lines up with the table
         st.markdown("<div style='padding-top:16px'></div>", unsafe_allow_html=True)
