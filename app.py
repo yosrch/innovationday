@@ -71,54 +71,58 @@ import datetime as dt
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
 
-    # 1) Load KPIs
-    df_kpis = load_table("""
-      SELECT
-        SUM(Total_Amount)            AS total_revenue,
-        AVG(Total_Amount)            AS avg_order_value,
-        COUNT(DISTINCT Customer_ID)  AS unique_customers
-      FROM gold.fact_sales
-    """)
+    # Layout: two columns (KPIs on left, chart on right)
+    kpi_col, chart_col = st.columns([1, 2])
 
-    # 2) Display KPIs
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
-    c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
-    c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
+    # 1) KPIs in the left column
+    with kpi_col:
+        df_kpis = load_table("""
+          SELECT
+            SUM(Total_Amount)            AS total_revenue,
+            AVG(Total_Amount)            AS avg_order_value,
+            COUNT(DISTINCT Customer_ID)  AS unique_customers
+          FROM gold.fact_sales
+        """)
+        st.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
+        st.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
+        st.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-    # 3) Load full forecast and filter to future dates
-    fc = load_table("""
-      SELECT ds, yhat
-      FROM gold.sales_forecast
-      ORDER BY ds
-    """)
-    fc["ds"] = pd.to_datetime(fc["ds"])
+    # 2) Forecast in the right column
+    with chart_col:
+        # load & filter forecast
+        fc = load_table("SELECT ds, yhat FROM gold.sales_forecast ORDER BY ds")
+        fc["ds"] = pd.to_datetime(fc["ds"])
+        today_date = dt.date.today()
+        fc_future = fc[fc["ds"].dt.date > today_date]
 
-    # Compare only the date portion
-    today_date = dt.date.today()
-    fc_future = fc[fc["ds"].dt.date > today_date]
+        # build chart
+        fig_fc = px.line(
+            fc_future,
+            x="ds",
+            y="yhat",
+            labels={"yhat":"Forecasted Sales (€)", "ds":"Date"},
+            template="plotly_white"
+        )
+        # format line and hover
+        fig_fc.update_traces(
+            hovertemplate="%{y:,.0f} €<br>%{x|%d.%m.%Y}",
+            name="Forecast"
+        )
+        # format x-axis ticks
+        fig_fc.update_xaxes(
+            tickformat="%d.%m.%Y",
+            tickangle=45,
+            dtick="D3"   # every 3 days; adjust as needed
+        )
+        fig_fc.update_layout(
+            xaxis_title="",        # title implied by the chart header
+            yaxis_title="Sales (€)",
+            margin=dict(l=0, r=0, t=30, b=0)
+        )
 
-    # 4) Build the 30-day forecast chart
-    fig_fc = px.line(
-        fc_future,
-        x="ds",
-        y="yhat",
-        labels={"yhat":"Forecasted Sales (€)", "ds":"Date"},
-        title="30-Day Sales Forecast",
-        template="plotly_white"
-    )
-    fig_fc.update_traces(
-        hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}",
-        name="Forecast"
-    )
-    fig_fc.update_layout(
-        xaxis_title="Date",
-        yaxis_title="Forecasted Sales (€)"
-    )
-
-    # 5) Render the forecast chart
-    st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
-
+        # render chart
+        st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
+        
     # 5) AI tips in an expander
     with st.expander("🔍 Automated Marketing Tips", expanded=False):
         if st.button("Generate General Tips", key="gen_tips_btn"):
