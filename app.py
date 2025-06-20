@@ -136,30 +136,20 @@ with tabs[0]:
                 "Authorization": f"Bearer {CLAUDE_TOKEN}",
                 "Content-Type": "application/json"
             }
-            body = {
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ]
-            }
+            body = {"messages": [{"role": "user", "content": prompt}]}
 
-            try:
+            with st.spinner("Generating tips…"):
                 r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
                 if r.status_code != 200:
                     st.error(f"Invocation failed with status {r.status_code}")
                     st.code(r.text, language="json")
                     st.stop()
-                resp_json = r.json()
-                text = resp_json["choices"][0]["message"]["content"]
-            except Exception as e:
-                st.error("Failed to generate tips. Please try again later.")
-                st.exception(e)
-                st.stop()
+                text = r.json()["choices"][0]["message"]["content"]
 
-            # Render each tip in a styled box
-            tips = [line.strip() for line in text.splitlines() if line.strip()]
+            tips = [t.strip() for t in text.splitlines() if t.strip()]
             for tip in tips:
                 st.markdown(f"<div class='llm-box'>• {tip}</div>", unsafe_allow_html=True)
-
+                
 # --- Tab 2: Segmentation ---
 with tabs[1]:
     st.subheader("Customer Segments Overview")
