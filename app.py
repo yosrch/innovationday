@@ -163,7 +163,7 @@ with tabs[1]:
     cust  = load_table("SELECT * FROM gold.dim_customer")
     merged = pd.merge(seg, cust, on="Customer_ID")
 
-    # 2) Build the segment-size chart
+    # 2) Build the segment‐size chart
     seg_sizes = (
         merged["segment"]
         .value_counts()
@@ -180,6 +180,8 @@ with tabs[1]:
     )
     fig_seg.update_traces(marker_color="#636efa")
     fig_seg.update_layout(
+        title_text="Customers per Segment",
+        title_x=0.5,
         xaxis=dict(
             tickmode="array",
             tickvals=[0, 1, 2, 3],
@@ -187,15 +189,18 @@ with tabs[1]:
             title="Segment"
         ),
         yaxis=dict(title="Number of Customers", gridcolor="lightgrey"),
-        margin=dict(l=0, r=0, t=20, b=0)
+        margin=dict(l=0, r=0, t=40, b=0)
     )
 
-    # 3) Display table & chart side-by-side
-    left, right = st.columns([2, 1], gap="large")
+    # 3) Display table & chart side‐by‐side
+    left, right = st.columns([2, 1], gap="small")
     with left:
         st.dataframe(merged, height=300)
     with right:
+        # add identical top padding so the chart lines up with the table
+        st.markdown("<div style='padding-top:16px'></div>", unsafe_allow_html=True)
         st.plotly_chart(fig_seg, use_container_width=True)
+
 
     # 4) Compute segment-level behavior stats
     seg_stats = load_table("""
