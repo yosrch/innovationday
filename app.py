@@ -147,14 +147,38 @@ with tabs[0]:
 with tabs[1]:
     st.subheader("Customer Segments Overview")
 
-    # — Table & chart side-by-side —
+    # 1) Load & merge raw data
+    seg   = load_table("SELECT * FROM gold.customer_segments")
+    cust  = load_table("SELECT * FROM gold.dim_customer")
+    merged = pd.merge(seg, cust, on="Customer_ID")
+
+    # 2) Build the segment-size chart
+    seg_sizes = (
+        merged["segment"]
+        .value_counts()
+        .sort_index()
+        .rename_axis("segment")
+        .reset_index(name="count")
+    )
+    fig_seg = px.bar(
+        seg_sizes,
+        x="segment",
+        y="count",
+        labels={"segment": "Segment ID", "count": "# Customers"},
+        title="Customers per Segment",
+        template="plotly_white"
+    )
+    fig_seg.update_traces(hovertemplate="%{y} customers<br>Segment %{x}")
+    fig_seg.update_layout(xaxis_title="Segment ID", yaxis_title="Number of Customers")
+
+    # 3) Display table & chart side-by-side
     left, right = st.columns([2, 1])
     with left:
         st.dataframe(merged, height=300)
     with right:
         st.plotly_chart(fig_seg, use_container_width=True)
 
-    # Compute segment statistics with purchase behavior
+    # 4) Compute segment-level behavior stats
     seg_stats = load_table("""
       SELECT
         s.segment,
@@ -175,9 +199,9 @@ with tabs[1]:
     """)
     total_customers = seg_stats["count"].sum()
 
-    # — Profiles expander —
+    # 5) Profiles expander
     with st.expander("👥 Describe Customer Segments", expanded=False):
-        if st.button("Describe Segments"):
+        if st.button("Describe Segments", key="desc_segs_btn"):
             lines = []
             for _, r in seg_stats.iterrows():
                 pct = r["count"] / total_customers * 100
@@ -187,12 +211,23 @@ with tabs[1]:
                     f"{r['avg_orders_per_customer']:.2f} orders/customer, "
                     f"Avg order €{r['avg_order_value']:.2f}"
                 )
-            prompt = "Here are our customer segments:\n" + "\n".join(f"- {l}" for l in lines) + \
-                     "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
+            prompt = (
+                "Here are our customer segments:\n"
+                + "\n".join(f"- {l}" for l in lines)
+                + "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
+            )
 
-            body = {"messages": [{"role":"user","content":prompt}]}
+            body = {"messages": [{"role": "user", "content": prompt}]}
             with st.spinner("Generating segment profiles…"):
-                r = requests.post(CLAUDE_URL, json=body, headers={"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}, timeout=120)
+                r = requests.post(
+                    CLAUDE_URL,
+                    json=body,
+                    headers={
+                        "Authorization": f"Bearer {CLAUDE_TOKEN}",
+                        "Content-Type": "application/json"
+                    },
+                    timeout=120
+                )
                 if r.status_code != 200:
                     st.error(f"Invocation failed: {r.status_code}")
                     st.code(r.text, language="json")
@@ -202,20 +237,33 @@ with tabs[1]:
             for line in [l.strip() for l in msg.splitlines() if l.strip()]:
                 st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
-    # — Strategies expander —
+    # 6) Strategies expander
     with st.expander("🎯 Segment-Specific Strategies", expanded=False):
-        if st.button("Generate Segment Strategies"):
-            prompt = "We have the following customer segments:\n" + \
-                     "\n".join(f"- Segment {int(r['segment'])}: {int(r['count'])} customers, "
-                               f"{r['avg_orders_per_customer']:.2f} orders/customer, "
-                               f"Avg order €{r['avg_order_value']:.2f}"
-                               for _, r in seg_stats.iterrows()) + \
-                     "\n\nFor each segment, recommend its top marketing channel, an offer type (discount, bundle, free shipping), " \
-                     "and which ABC product category to emphasize. Give 2 bullet points per segment."
+        if st.button("Generate Segment Strategies", key="strat_segs_btn"):
+            prompt = (
+                "We have the following customer segments:\n"
+                + "\n".join(
+                    f"- Segment {int(r['segment'])}: {int(r['count'])} customers, "
+                    f"{r['avg_orders_per_customer']:.2f} orders/customer, "
+                    f"Avg order €{r['avg_order_value']:.2f}"
+                    for _, r in seg_stats.iterrows()
+                )
+                + "\n\nFor each segment, recommend its top marketing channel, an offer type "
+                  "(discount, bundle, free shipping), and which ABC product category to "
+                  "emphasize. Give 2 bullet points per segment."
+            )
 
-            body = {"messages":[{"role":"user","content":prompt}]}
+            body = {"messages": [{"role": "user", "content": prompt}]}
             with st.spinner("Generating segment strategies…"):
-                r = requests.post(CLAUDE_URL, json=body, headers={"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}, timeout=120)
+                r = requests.post(
+                    CLAUDE_URL,
+                    json=body,
+                    headers={
+                        "Authorization": f"Bearer {CLAUDE_TOKEN}",
+                        "Content-Type": "application/json"
+                    },
+                    timeout=120
+                )
                 if r.status_code != 200:
                     st.error(f"Invocation failed: {r.status_code}")
                     st.code(r.text, language="json")
