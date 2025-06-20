@@ -67,6 +67,13 @@ tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 # OpenAI-powered marketing tips
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
+    df_kpis = load_table("""
+      SELECT
+        SUM(Total_Amount)            AS total_revenue,
+        AVG(Total_Amount)            AS avg_order_value,
+        COUNT(DISTINCT Customer_ID)  AS unique_customers
+      FROM gold.fact_sales
+    """)
 
     # — Metrics row —
     with st.container():
