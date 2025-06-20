@@ -64,50 +64,7 @@ st.title("📊 Consumer Goods Analytics Demo")
 # Create top-level tabs
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
-# --- Tab 1: Overview ---
-with tabs[0]:
-    st.subheader("Key Metrics & Forecast")
-    df_kpis = load_table("""
-      SELECT
-        SUM(Total_Amount)            AS total_revenue,
-        AVG(Total_Amount)            AS avg_order_value,
-        COUNT(DISTINCT Customer_ID)  AS unique_customers
-      FROM gold.fact_sales
-    """)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("💰Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
-    c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
-    c3.metric("👥Unique Customers", f"{df_kpis.unique_customers[0]:,}")
-
-    # 30-day forecast chart
-    fc = load_table("""
-      SELECT ds, yhat, yhat_lower, yhat_upper
-      FROM gold.sales_forecast
-      ORDER BY ds
-    """)
-    fig_fc = px.line(
-        fc,
-        x="ds",
-        y=["yhat", "yhat_lower", "yhat_upper"],
-        labels={"value": "Sales (€)", "ds": "Date"},
-        title="30-Day Sales Forecast",
-        template="plotly_white"
-    )
-    fig_fc.for_each_trace(lambda t: t.update(name={
-        "yhat": "Forecast",
-        "yhat_lower": "Lower Bound",
-        "yhat_upper": "Upper Bound"
-    }[t.name]))
-    fig_fc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}")
-    fig_fc.update_layout(
-        xaxis_title="Date",
-        yaxis_title="Forecasted Revenue (€)",
-        legend_title="Series"
-    )
-    st.subheader("30-Day Sales Forecast")
-    st.plotly_chart(fig_fc, use_container_width=True)
-
-    # OpenAI-powered marketing tips
+# OpenAI-powered marketing tips
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
 
