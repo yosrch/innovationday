@@ -126,7 +126,7 @@ with tabs[0]:
         st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
         
     # 5) AI tips in an expander
-    with st.expander("🔍 Automated Marketing Tips", expanded=False):
+    with st.expander("🔍 Automated Marketing Tips", expanded=True):
         if st.button("Generate General Tips", key="gen_tips_btn"):
             prompt = (
                 f"Our KPIs are:\n"
