@@ -441,38 +441,42 @@ def get_data_context() -> str:
 with tabs[3]:
     st.header("💬 Ask the Data")
 
-    # 1) Create a container for the chat bubbles
+    # Container for chat messages
     chat_container = st.container()
 
-    # 2) Pull or init the history
+    # Initialize history
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 3) Function to render all messages
+    # Helper to redraw only user/assistant messages
     def render_history():
         chat_container.empty()
         for msg in st.session_state.messages:
             chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # Render existing history on first load
+    # Render existing Q&A history
     render_history()
 
-    # 4) Collect the user’s question
+    # Collect a new question
     user_question = st.chat_input("Type your question about KPIs, segments or products…")
     if user_question:
-        # Record the user message
+        # 1) Record & render the user question
         st.session_state.messages.append({"role": "user", "content": user_question})
+        chat_container.chat_message("user").write(user_question)
 
-        # Build your prompt + call Claude (same as before)…
-        data_context = get_data_context()
+        # 2) Build your prompt context
+        data_context = get_data_context()  # cached KPIs/segments/ABC
         prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
+
+        # 3) Prepare the Claude payload (system + few-shot + user)
         body = {
             "messages": [
                 {
                     "role": "system",
                     "content": (
-                        "You are an expert data analyst assistant. Answer concisely in bullet points "
-                        "without repeating the full context."
+                        "You are an expert data analyst assistant. "
+                        "Answer in a concise, professional style with bullet highlights. "
+                        "Do not repeat the entire context; refer only to relevant facts."
                     ),
                 },
                 {
@@ -490,6 +494,7 @@ with tabs[3]:
             "Content-Type": "application/json",
         }
 
+        # 4) Call Claude
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
             if r.status_code != 200:
@@ -498,10 +503,13 @@ with tabs[3]:
                 st.stop()
             assistant_reply = r.json()["choices"][0]["message"]["content"]
 
-        # Record the assistant reply
-        st.session_state.messages.append(
-            {"role": "assistant", "content": assistant_reply}
-        )
+        # 5) Clean out any <<…>> tokens
+        lines = [
+            line for line in assistant_reply.splitlines()
+            if not (line.strip().startswith("<<") and line.strip().endswith(">>"))
+        ]
+        assistant_reply = "\n".join(lines).strip()
 
-        # 5) Re-render the entire history in our container
-        render_history()
+        # 6) Record & render the assistant reply
+        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
+        chat_container.chat_message("assistant").write(assistant_reply)
