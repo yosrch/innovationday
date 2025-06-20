@@ -93,8 +93,10 @@ with tabs[0]:
       ORDER BY ds
     """)
     fc["ds"] = pd.to_datetime(fc["ds"])
-    today = pd.Timestamp(dt.date.today())
-    fc_future = fc[fc["ds"] > today]
+
+    # Compare only the date portion
+    today_date = dt.date.today()
+    fc_future = fc[fc["ds"].dt.date > today_date]
 
     # 4) Build the 30-day forecast chart
     fig_fc = px.line(
