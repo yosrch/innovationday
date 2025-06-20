@@ -115,7 +115,6 @@ with tabs[0]:
                 st.code(r.text, language="json")
                 st.stop()
             resp_json = r.json()
-            st.write(f"- {r.text}")
             text = resp_json["choices"][0]["message"]["content"]
         except Exception as e:
             st.error("Failed to generate tips. Please try again later.")
