@@ -6,6 +6,26 @@ from databricks import sql
 import plotly.express as px
 import requests
 
+st.markdown(
+    """
+    <style>
+      /* Add some breathing room around charts and tables */
+      .stPlotlyChart, .streamlit-expanderHeader {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+      }
+      /* Style LLM answer boxes */
+      .llm-box {
+        background-color: #f0f4ff;
+        border-left: 4px solid #3f51b5;
+        padding: 0.75rem 1rem;
+        margin: 0.5rem 0;
+        border-radius: 0.25rem;
+      }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 # Load environment variables
 load_dotenv()
 
@@ -46,7 +66,7 @@ tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # --- Tab 1: Overview ---
 with tabs[0]:
-    st.header("Key Metrics & Forecast")
+    st.subheader("Key Metrics & Forecast")
     df_kpis = load_table("""
       SELECT
         SUM(Total_Amount)            AS total_revenue,
@@ -55,9 +75,9 @@ with tabs[0]:
       FROM gold.fact_sales
     """)
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
-    c2.metric("Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
-    c3.metric("Unique Customers", f"{df_kpis.unique_customers[0]:,}")
+    c1.metric("💰Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
+    c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
+    c3.metric("👥Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
     # 30-day forecast chart
     fc = load_table("""
@@ -84,87 +104,84 @@ with tabs[0]:
         yaxis_title="Forecasted Revenue (€)",
         legend_title="Series"
     )
+    st.subheader("30-Day Sales Forecast")
     st.plotly_chart(fig_fc, use_container_width=True)
 
     # OpenAI-powered marketing tips
-    st.subheader("🔍 Automated Insights")
-    if st.button("Generate Marketing Tips"):
-        prompt = (
-            f"Our KPIs are:\n"
-            f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
-            f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
-            f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
-            "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
-        )
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json"
-        }
-        body = {
-            "messages": [
-                {"role": "user", "content":  prompt}
-            ]
-        }
-        
+with tabs[0]:
+    st.subheader("Key Metrics & Forecast")
 
-        try:
-            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=30)
-            # don’t raise here; instead inspect the body on error
-            if r.status_code != 200:
-                st.error(f"Invocation failed with status {r.status_code}")
-                st.code(r.text, language="json")
+    # — Metrics row —
+    with st.container():
+        c1, c2, c3 = st.columns(3)
+        c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
+        c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
+        c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
+
+    # — Forecast chart —
+    st.subheader("30-Day Sales Forecast")
+    st.plotly_chart(fig_fc, use_container_width=True)
+
+    # — AI tips in an expander —
+    with st.expander("🔍 Automated Marketing Tips", expanded=False):
+        if st.button("Generate General Tips"):
+            prompt = (
+                f"Our KPIs are:\n"
+                f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
+                f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
+                f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
+                "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
+            )
+            headers = {
+                "Authorization": f"Bearer {CLAUDE_TOKEN}",
+                "Content-Type": "application/json"
+            }
+            body = {
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ]
+            }
+
+            try:
+                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+                if r.status_code != 200:
+                    st.error(f"Invocation failed with status {r.status_code}")
+                    st.code(r.text, language="json")
+                    st.stop()
+                resp_json = r.json()
+                text = resp_json["choices"][0]["message"]["content"]
+            except Exception as e:
+                st.error("Failed to generate tips. Please try again later.")
+                st.exception(e)
                 st.stop()
-            resp_json = r.json()
-            text = resp_json["choices"][0]["message"]["content"]
-        except Exception as e:
-            st.error("Failed to generate tips. Please try again later.")
-            st.exception(e)
-            st.stop()
-            
-        for line in text.split("\n"):
-            if line.strip():
-                st.write(f"- {line.strip()}")
+
+            # Render each tip in a styled box
+            tips = [line.strip() for line in text.splitlines() if line.strip()]
+            for tip in tips:
+                st.markdown(f"<div class='llm-box'>• {tip}</div>", unsafe_allow_html=True)
 
 # --- Tab 2: Segmentation ---
 with tabs[1]:
-    st.header("Customer Segments")
-    seg  = load_table("SELECT * FROM gold.customer_segments")
-    cust = load_table("SELECT * FROM gold.dim_customer")
-    merged = pd.merge(seg, cust, on="Customer_ID")
-    st.dataframe(merged, height=400)
+    st.subheader("Customer Segments Overview")
 
-    # Segment size bar chart
-    seg_sizes = (
-        merged["segment"]
-        .value_counts()
-        .sort_index()
-        .rename_axis("segment")
-        .reset_index(name="count")
-    )
-    fig_seg = px.bar(
-        seg_sizes,
-        x="segment",
-        y="count",
-        labels={"segment": "Segment ID", "count": "# Customers"},
-        title="Customers per Segment",
-        template="plotly_white"
-    )
-    fig_seg.update_traces(hovertemplate="%{y} customers<br>Segment %{x}")
-    fig_seg.update_layout(
-        xaxis_title="Segment ID",
-        yaxis_title="Number of Customers"
-    )
-    st.plotly_chart(fig_seg, use_container_width=True)
-    # 1) Compute segment-level statistics, including purchase behavior
+    # — Table & chart side-by-side —
+    left, right = st.columns([2, 1])
+    with left:
+        st.dataframe(merged, height=300)
+    with right:
+        st.plotly_chart(fig_seg, use_container_width=True)
+
+    # Compute segment statistics with purchase behavior
     seg_stats = load_table("""
       SELECT
         s.segment,
-        COUNT(DISTINCT c.Customer_ID) AS count,
-        ROUND(AVG(c.Age),1) AS avg_age,
-        ROUND(100.0 * SUM(CASE WHEN c.Gender='Male' THEN 1 ELSE 0 END) / COUNT(DISTINCT c.Customer_ID),1)
-          AS pct_male,
-        ROUND(AVG(f.Total_Amount),2) AS avg_order_value,
-        ROUND(COUNT(f.Customer_ID) / COUNT(DISTINCT c.Customer_ID),2) AS avg_orders_per_customer
+        COUNT(DISTINCT c.Customer_ID)       AS count,
+        ROUND(AVG(c.Age),1)                 AS avg_age,
+        ROUND(100.0*SUM(CASE WHEN c.Gender='Male' THEN 1 ELSE 0 END)/COUNT(DISTINCT c.Customer_ID),1)
+                                            AS pct_male,
+        ROUND(AVG(f.Total_Amount),2)        AS avg_order_value,
+        ROUND(COUNT(f.Customer_ID)/COUNT(DISTINCT c.Customer_ID),2)
+                                            AS avg_orders_per_customer
       FROM gold.customer_segments s
       JOIN gold.dim_customer c
         ON s.Customer_ID = c.Customer_ID
@@ -175,79 +192,55 @@ with tabs[1]:
     """)
     total_customers = seg_stats["count"].sum()
 
-    # 2) Describe Customer Segments
-    st.subheader("👥 Describe Customer Segments")
-    if st.button("Describe Customer Segments"):
-        lines = []
-        for _, r in seg_stats.iterrows():
-            pct = r["count"] / total_customers * 100
-            lines.append(
-                f"Segment {int(r['segment'])}: {int(r['count'])} customers "
-                f"({pct:.1f}%), Avg age {r['avg_age']}, {r['pct_male']:.1f}% male, "
-                f"{r['avg_orders_per_customer']:.2f} orders/customer, "
-                f"Avg order €{r['avg_order_value']:.2f}"
-            )
-        prompt = (
-            "Here are our customer segments:\n"
-            + "\n".join(f"- {l}" for l in lines)
-            + "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
-        )
+    # — Profiles expander —
+    with st.expander("👥 Describe Customer Segments", expanded=False):
+        if st.button("Describe Segments"):
+            lines = []
+            for _, r in seg_stats.iterrows():
+                pct = r["count"] / total_customers * 100
+                lines.append(
+                    f"Segment {int(r['segment'])}: {int(r['count'])} customers "
+                    f"({pct:.1f}%), Avg age {r['avg_age']}, {r['pct_male']:.1f}% male, "
+                    f"{r['avg_orders_per_customer']:.2f} orders/customer, "
+                    f"Avg order €{r['avg_order_value']:.2f}"
+                )
+            prompt = "Here are our customer segments:\n" + "\n".join(f"- {l}" for l in lines) + \
+                     "\n\nFor each segment, write a 1–2 sentence profile describing its key characteristics."
 
-        headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
-        body = {"messages": [{"role": "user", "content": prompt}]}
-
-        with st.spinner("Generating segment profiles…"):
-            try:
-                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            body = {"messages": [{"role":"user","content":prompt}]}
+            with st.spinner("Generating segment profiles…"):
+                r = requests.post(CLAUDE_URL, json=body, headers={"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}, timeout=120)
                 if r.status_code != 200:
-                    st.error(f"Invocation failed with status {r.status_code}")
+                    st.error(f"Invocation failed: {r.status_code}")
                     st.code(r.text, language="json")
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
-            except Exception as e:
-                st.error("Failed to describe segments.")
-                st.exception(e)
-                st.stop()
 
-        for line in msg.split("\n"):
-            if line.strip():
-                st.write(line.strip())
+            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
+                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
-    # 3) Generate Segment Strategies
-    st.subheader("🎯 Segment-Specific Strategies")
-    if st.button("Generate Segment Strategies"):
-        prompt = (
-            "We have the following customer segments:\n"
-            + "\n".join(
-                f"- Segment {int(r['segment'])}: {int(r['count'])} customers, "
-                f"{r['avg_orders_per_customer']:.2f} orders/customer, "
-                f"Avg order €{r['avg_order_value']:.2f}"
-                for _, r in seg_stats.iterrows()
-            )
-            + "\n\nFor each segment, recommend its top marketing channel, "
-              "an offer type (discount, bundle, free shipping), and which ABC "
-              "product category to emphasize. Give 2 bullet points per segment."
-        )
+    # — Strategies expander —
+    with st.expander("🎯 Segment-Specific Strategies", expanded=False):
+        if st.button("Generate Segment Strategies"):
+            prompt = "We have the following customer segments:\n" + \
+                     "\n".join(f"- Segment {int(r['segment'])}: {int(r['count'])} customers, "
+                               f"{r['avg_orders_per_customer']:.2f} orders/customer, "
+                               f"Avg order €{r['avg_order_value']:.2f}"
+                               for _, r in seg_stats.iterrows()) + \
+                     "\n\nFor each segment, recommend its top marketing channel, an offer type (discount, bundle, free shipping), " \
+                     "and which ABC product category to emphasize. Give 2 bullet points per segment."
 
-        headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
-        body = {"messages": [{"role": "user", "content": prompt}]}
-
-        with st.spinner("Generating segment strategies…"):
-            try:
-                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            body = {"messages":[{"role":"user","content":prompt}]}
+            with st.spinner("Generating segment strategies…"):
+                r = requests.post(CLAUDE_URL, json=body, headers={"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}, timeout=120)
                 if r.status_code != 200:
-                    st.error(f"Invocation failed with status {r.status_code}")
+                    st.error(f"Invocation failed: {r.status_code}")
                     st.code(r.text, language="json")
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
-            except Exception as e:
-                st.error("Failed to generate strategies.")
-                st.exception(e)
-                st.stop()
 
-        for line in msg.split("\n"):
-            if line.strip():
-                st.write(f"- {line.strip()}")
+            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
+                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
@@ -343,11 +336,6 @@ with tabs[2]:
         fig_treemap.update_layout(margin=dict(l=0, r=0, t=30, b=0))
         st.plotly_chart(fig_treemap, use_container_width=True)
 
-
-
-
-
-
 # If you want to let Claude suggest strategies per category:
     if st.button("Generate ABC-Based Product Strategies"):
         # Build the prompt from prod_abc DataFrame
@@ -438,44 +426,46 @@ def get_data_context() -> str:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    st.header("💬 Ask the Data")
+    st.subheader("💬 Ask the Data")
 
-    # Container for chat messages
+    # — Chat container to hold all messages —
     chat_container = st.container()
 
-    # Initialize history
+    # — Initialize chat history if needed —
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Helper to redraw only user/assistant messages
+    # — Helper to (re)draw just the user & assistant messages —
     def render_history():
         chat_container.empty()
         for msg in st.session_state.messages:
             chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # Render existing Q&A history
+    # — Render any existing history on load —
     render_history()
 
-    # Collect a new question
+    # — Input box for a new question —
     user_question = st.chat_input("Type your question about KPIs, segments or products…")
     if user_question:
-        # 1) Record & render the user question
+        # 1) Record & immediately display the user’s message
         st.session_state.messages.append({"role": "user", "content": user_question})
         chat_container.chat_message("user").write(user_question)
 
-        # 2) Build your prompt context
-        data_context = get_data_context()  # cached KPIs/segments/ABC
-        prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
+        # 2) Build the prompt context (cached)
+        data_context = get_data_context()
+        prompt = (
+            f"Context:\n{data_context}\n\n"
+            f"Question: {user_question}"
+        )
 
-        # 3) Prepare the Claude payload (system + few-shot + user)
+        # 3) Prepare the three-message Claude payload
         body = {
             "messages": [
                 {
                     "role": "system",
                     "content": (
                         "You are an expert data analyst assistant. "
-                        "Answer in a concise, professional style with bullet highlights. "
-                        "Do not repeat the entire context; refer only to relevant facts."
+                        "Answer concisely in bullet points without repeating full context."
                     ),
                 },
                 {
@@ -485,7 +475,10 @@ with tabs[3]:
                         "Answer: The average order value is €1,284, reflecting strong upsell performance."
                     ),
                 },
-                {"role": "user", "content": prompt},
+                {
+                    "role": "user",
+                    "content": prompt
+                }
             ]
         }
         headers = {
@@ -493,7 +486,7 @@ with tabs[3]:
             "Content-Type": "application/json",
         }
 
-        # 4) Call Claude
+        # 4) Call the Claude endpoint
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
             if r.status_code != 200:
@@ -502,13 +495,13 @@ with tabs[3]:
                 st.stop()
             assistant_reply = r.json()["choices"][0]["message"]["content"]
 
-        # 5) Clean out any <<…>> tokens
-        lines = [
+        # 5) Strip out any <<…>> tokens
+        cleaned_lines = [
             line for line in assistant_reply.splitlines()
             if not (line.strip().startswith("<<") and line.strip().endswith(">>"))
         ]
-        assistant_reply = "\n".join(lines).strip()
+        assistant_reply = "\n".join(cleaned_lines).strip()
 
-        # 6) Record & render the assistant reply
+        # 6) Record & immediately display the assistant’s reply
         st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
         chat_container.chat_message("assistant").write(assistant_reply)
