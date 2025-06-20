@@ -111,14 +111,14 @@ with tabs[0]:
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
 
-    # — Metrics row —  
+    # — Metrics row —
     with st.container():
         c1, c2, c3 = st.columns(3)
-        c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}", key="metric_rev")
-        c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}", key="metric_aov")
-        c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}", key="metric_cust")
+        c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
+        c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
+        c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-    # — Forecast chart —  
+    # — Forecast chart —
     st.subheader("30-Day Sales Forecast")
     st.plotly_chart(
         fig_fc,
@@ -126,7 +126,7 @@ with tabs[0]:
         key="forecast_chart"
     )
 
-    # — AI tips in an expander —  
+    # — AI tips in an expander —
     with st.expander("🔍 Automated Marketing Tips", expanded=False):
         if st.button("Generate General Tips", key="gen_tips_btn"):
             prompt = (
@@ -151,13 +151,9 @@ with tabs[0]:
                 text = r.json()["choices"][0]["message"]["content"]
 
             tips = [t.strip() for t in text.splitlines() if t.strip()]
-            for i, tip in enumerate(tips):
-                # give each box a unique key just in case
-                st.markdown(
-                    f"<div class='llm-box'>• {tip}</div>",
-                    unsafe_allow_html=True
-                )
-                
+            for tip in tips:
+                st.markdown(f"<div class='llm-box'>• {tip}</div>", unsafe_allow_html=True)
+
 # --- Tab 2: Segmentation ---
 with tabs[1]:
     st.subheader("Customer Segments Overview")
