@@ -67,6 +67,8 @@ tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 # OpenAI-powered marketing tips
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
+
+    # 1) Load KPIs
     df_kpis = load_table("""
       SELECT
         SUM(Total_Amount)            AS total_revenue,
@@ -75,22 +77,44 @@ with tabs[0]:
       FROM gold.fact_sales
     """)
 
-    # — Metrics row —
-    with st.container():
-        c1, c2, c3 = st.columns(3)
-        c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
-        c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
-        c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
+    # 2) Metrics row
+    c1, c2, c3 = st.columns(3)
+    c1.metric("💰 Total Revenue",    f"€{df_kpis.total_revenue[0]:,.0f}")
+    c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
+    c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-    # — Forecast chart (only once!) —
-    st.subheader("30-Day Sales Forecast")
-    st.plotly_chart(
-        fig_fc,
-        use_container_width=True,
-        key="forecast_chart"
+    # 3) Load & build the 30-day forecast chart
+    fc = load_table("""
+      SELECT ds, yhat, yhat_lower, yhat_upper
+      FROM gold.sales_forecast
+      ORDER BY ds
+    """)
+    fig_fc = px.line(
+        fc,
+        x="ds",
+        y=["yhat", "yhat_lower", "yhat_upper"],
+        labels={"value": "Sales (€)", "ds": "Date"},
+        title="30-Day Sales Forecast",
+        template="plotly_white"
+    )
+    # Rename traces and format hover
+    fig_fc.for_each_trace(lambda t: t.update(name={
+        "yhat": "Forecast",
+        "yhat_lower": "Lower Bound",
+        "yhat_upper": "Upper Bound"
+    }[t.name]))
+    fig_fc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}")
+    fig_fc.update_layout(
+        xaxis_title="Date",
+        yaxis_title="Forecasted Revenue (€)",
+        legend_title="Series"
     )
 
-    # — AI tips in an expander —
+    # 4) Render the forecast chart
+    st.subheader("30-Day Sales Forecast")
+    st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
+
+    # 5) AI tips in an expander
     with st.expander("🔍 Automated Marketing Tips", expanded=False):
         if st.button("Generate General Tips", key="gen_tips_btn"):
             prompt = (
