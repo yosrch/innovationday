@@ -71,11 +71,10 @@ import datetime as dt
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
 
-    # Layout: two columns (KPIs on left, chart on right)
-    kpi_col, chart_col = st.columns([1, 2])
-
-    # 1) KPIs in the left column
+    # two-column layout, with a little top padding in the KPI column
+    kpi_col, chart_col = st.columns([1, 2], gap="large")
     with kpi_col:
+        st.markdown("<div style='padding-top:50px'></div>", unsafe_allow_html=True)
         df_kpis = load_table("""
           SELECT
             SUM(Total_Amount)            AS total_revenue,
@@ -87,40 +86,43 @@ with tabs[0]:
         st.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
         st.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-    # 2) Forecast in the right column
     with chart_col:
-        # load & filter forecast
+        # pull and filter forecast
         fc = load_table("SELECT ds, yhat FROM gold.sales_forecast ORDER BY ds")
         fc["ds"] = pd.to_datetime(fc["ds"])
         today_date = dt.date.today()
         fc_future = fc[fc["ds"].dt.date > today_date]
 
-        # build chart
+        # build a sleeker chart
         fig_fc = px.line(
             fc_future,
             x="ds",
             y="yhat",
-            labels={"yhat":"Forecasted Sales (€)", "ds":"Date"},
+            labels={"yhat":"Sales (€)", "ds":"Date"},
             template="plotly_white"
         )
-        # format line and hover
         fig_fc.update_traces(
-            hovertemplate="%{y:,.0f} €<br>%{x|%d.%m.%Y}",
-            name="Forecast"
-        )
-        # format x-axis ticks
-        fig_fc.update_xaxes(
-            tickformat="%d.%m.%Y",
-            tickangle=45,
-            dtick="D3"   # every 3 days; adjust as needed
+            mode="lines+markers",
+            marker=dict(size=6),
+            line=dict(width=2, shape="spline"),
+            hovertemplate="%{y:,.0f} €<br>%{x|%d.%m.%Y}"
         )
         fig_fc.update_layout(
-            xaxis_title="",        # title implied by the chart header
-            yaxis_title="Sales (€)",
-            margin=dict(l=0, r=0, t=30, b=0)
+            title="30-Day Sales Forecast",
+            title_x=0.02,
+            title_font_size=16,
+            xaxis=dict(
+                tickformat="%d.%m.%Y",
+                tickangle=45,
+                showgrid=False
+            ),
+            yaxis=dict(
+                title="Forecasted Sales (€)",
+                gridcolor="lightgrey"
+            ),
+            margin=dict(l=0, r=0, t=40, b=20)
         )
 
-        # render chart
         st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
         
     # 5) AI tips in an expander
