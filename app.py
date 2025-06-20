@@ -65,6 +65,9 @@ st.title("📊 Consumer Goods Analytics Demo")
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # OpenAI-powered marketing tips
+import datetime as dt
+
+# --- Tab 1: Overview ---
 with tabs[0]:
     st.subheader("Key Metrics & Forecast")
 
@@ -83,26 +86,35 @@ with tabs[0]:
     c2.metric("📈 Avg Order Value",  f"€{df_kpis.avg_order_value[0]:,.2f}")
     c3.metric("👥 Unique Customers", f"{df_kpis.unique_customers[0]:,}")
 
-    # 3) Load & build the 30-day forecast chart (only the mean forecast)
+    # 3) Load full forecast and filter to future dates
     fc = load_table("""
       SELECT ds, yhat
       FROM gold.sales_forecast
       ORDER BY ds
     """)
+    fc["ds"] = pd.to_datetime(fc["ds"])
+    today = pd.Timestamp(dt.date.today())
+    fc_future = fc[fc["ds"] > today]
+
+    # 4) Build the 30-day forecast chart
     fig_fc = px.line(
-        fc,
+        fc_future,
         x="ds",
         y="yhat",
         labels={"yhat":"Forecasted Sales (€)", "ds":"Date"},
+        title="30-Day Sales Forecast",
         template="plotly_white"
     )
-    fig_fc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}", name="Forecast")
+    fig_fc.update_traces(
+        hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}",
+        name="Forecast"
+    )
     fig_fc.update_layout(
         xaxis_title="Date",
         yaxis_title="Forecasted Sales (€)"
     )
 
-    # 4) Render the forecast chart
+    # 5) Render the forecast chart
     st.plotly_chart(fig_fc, use_container_width=True, key="forecast_chart")
 
     # 5) AI tips in an expander
