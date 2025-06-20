@@ -175,15 +175,23 @@ with tabs[1]:
         seg_sizes,
         x="segment",
         y="count",
-        labels={"segment": "Segment ID", "count": "# Customers"},
-        title="Customers per Segment",
+        labels={"segment": "Segment", "count": "# Customers"},
         template="plotly_white"
     )
-    fig_seg.update_traces(hovertemplate="%{y} customers<br>Segment %{x}")
-    fig_seg.update_layout(xaxis_title="Segment ID", yaxis_title="Number of Customers")
+    fig_seg.update_traces(marker_color="#636efa")
+    fig_seg.update_layout(
+        xaxis=dict(
+            tickmode="array",
+            tickvals=[0, 1, 2, 3],
+            ticktext=["0", "1", "2", "3"],
+            title="Segment"
+        ),
+        yaxis=dict(title="Number of Customers", gridcolor="lightgrey"),
+        margin=dict(l=0, r=0, t=20, b=0)
+    )
 
     # 3) Display table & chart side-by-side
-    left, right = st.columns([2, 1])
+    left, right = st.columns([2, 1], gap="large")
     with left:
         st.dataframe(merged, height=300)
     with right:
@@ -210,9 +218,9 @@ with tabs[1]:
     """)
     total_customers = seg_stats["count"].sum()
 
-    # 5) Profiles expander
-    with st.expander("👥 Describe Customer Segments", expanded=False):
-        if st.button("Describe Segments", key="desc_segs_btn"):
+    # 5) Profiles expander (open by default, button “Generate”)
+    with st.expander("👥 Describe Customer Segments", expanded=True):
+        if st.button("Generate", key="desc_segs_btn"):
             lines = []
             for _, r in seg_stats.iterrows():
                 pct = r["count"] / total_customers * 100
@@ -248,9 +256,9 @@ with tabs[1]:
             for line in [l.strip() for l in msg.splitlines() if l.strip()]:
                 st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
-    # 6) Strategies expander
-    with st.expander("🎯 Segment-Specific Strategies", expanded=False):
-        if st.button("Generate Segment Strategies", key="strat_segs_btn"):
+    # 6) Strategies expander (open by default, button “Generate”)
+    with st.expander("🎯 Segment-Specific Strategies", expanded=True):
+        if st.button("Generate", key="strat_segs_btn"):
             prompt = (
                 "We have the following customer segments:\n"
                 + "\n".join(
