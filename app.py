@@ -366,6 +366,28 @@ with tabs[2]:
     )
     st.plotly_chart(fig_fc, use_container_width=True)
 
+    # 4) ABC classification treemap + grid
+    prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
+    st.subheader("📦 ABC Classification of Products")
+    grid_col, tree_col = st.columns([2,1])
+    with grid_col:
+        from st_aggrid import AgGrid, GridOptionsBuilder
+        gb = GridOptionsBuilder.from_dataframe(prod_abc)
+        gb.configure_default_column(filterable=True, sortable=True, resizable=True)
+        grid_opts = gb.build()
+        AgGrid(prod_abc, gridOptions=grid_opts, enable_enterprise_modules=False, theme="alpine", height=350)
+    with tree_col:
+        fig_tm = px.treemap(
+            prod_abc,
+            path=["ABC_Category","Product_Name"],
+            values="revenue",
+            color="ABC_Category",
+            color_discrete_map={"A":"gold","B":"lightblue","C":"lightgray"},
+            title="Revenue by ABC Category"
+        )
+        fig_tm.update_layout(margin=dict(l=0,r=0,t=30,b=0))
+        st.plotly_chart(fig_tm, use_container_width=True)
+
 # If you want to let Claude suggest strategies per category:
     if st.button("Generate ABC-Based Product Strategies"):
         # Build the prompt from prod_abc DataFrame
