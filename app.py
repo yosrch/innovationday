@@ -341,7 +341,7 @@ with tabs[2]:
         # remove marker_line_width here
     )
     # now remove any border lines:
-    fig_bar.update_traces(marker_line_width=0)
+    fig_bar.update_traces(marker_line_width=0, marker_line_color="rgba(0,0,0,0)")
     fig_bar.update_layout(
         xaxis_tickangle=-45,
         margin=dict(b=120)
