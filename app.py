@@ -331,13 +331,13 @@ with tabs[2]:
         df_bar,
         x="Product_Name",
         y="revenue",
-        labels={"Product_Name":"Product", "revenue":"Revenue (€)"},
+        labels={"Product_Name": "Product", "revenue": "Revenue (€)"},
         title=f"{choice} by Revenue",
         template="plotly_white"
     )
     fig_bar.update_layout(
         xaxis=dict(tickangle=-45),
-        margin=dict(t=40,b=100)
+        margin=dict(t=40, b=100)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -353,20 +353,43 @@ with tabs[2]:
     selected_ids = [name_to_id[n] for n in selected_products if n in name_to_id]
 
     if selected_ids:
+        # merge to bring Product_Name into the forecast DF
+        fc_plot = (
+            fc_future
+            .loc[fc_future["Product_ID"].isin(selected_ids)]
+            .merge(
+                prod[["Product_ID", "Product_Name"]],
+                on="Product_ID",
+                how="left"
+            )
+        )
+
         fig_fc2 = px.line(
-            fc_future[fc_future["Product_ID"].isin(selected_ids)],
+            fc_plot,
             x="ds",
             y="yhat",
             color="Product_Name",
-            labels={"ds":"Date", "yhat":"Forecast (€)", "Product_Name":"Product"},
+            labels={
+                "ds": "Date",
+                "yhat": "Forecast (€)",
+                "Product_Name": "Product"
+            },
             template="plotly_white"
         )
-        fig_fc2.update_traces(mode="lines+markers", marker=dict(size=4), line=dict(width=2))
+        fig_fc2.update_traces(
+            mode="lines+markers",
+            marker=dict(size=4),
+            line=dict(width=2)
+        )
         fig_fc2.update_layout(
-            xaxis=dict(tickformat="%d.%m.%Y", tickangle=45),
-            margin=dict(t=20,b=40)
+            xaxis=dict(
+                tickformat="%d.%m.%Y",
+                tickangle=45
+            ),
+            margin=dict(t=20, b=40)
         )
         st.plotly_chart(fig_fc2, use_container_width=True)
+
     else:
         st.info("Select one or more products above to view their forecasts.")
 
