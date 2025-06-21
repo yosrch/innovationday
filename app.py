@@ -301,7 +301,7 @@ with tabs[1]:
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
-    # 1) Load full revenue summary
+    # 1) Full revenue summary
     prod = load_table("""
       SELECT Product_ID, Product_Name, SUM(Total_Amount) AS revenue
       FROM gold.fact_sales
@@ -309,42 +309,43 @@ with tabs[2]:
       ORDER BY revenue DESC
     """)
 
-    # 2) Load all forecasts once
+    # 2) Load all product-level forecasts once
     fc_all = load_table("""
       SELECT ds, yhat, Product_ID
       FROM gold.product_forecast
       ORDER BY ds
-    """)
-    # join product names
-    fc_all = fc_all.merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
+    """).merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
 
-    # 3) Selector for Top 5 / Bottom 5 / Custom
+    # 3) Let user pick Top, Bottom or Custom
     mode = st.radio("Show products:", ["Top 5", "Bottom 5", "Custom"], horizontal=True)
     if mode == "Top 5":
         sel = prod.head(5)
     elif mode == "Bottom 5":
         sel = prod.tail(5)
     else:
-        names = prod["Product_Name"].tolist()
-        picked = st.multiselect("Pick products to include:", options=names, default=names[:5])
+        picked = st.multiselect(
+            "Pick products to include:",
+            options=prod["Product_Name"],
+            default=prod["Product_Name"].tolist()[:5]
+        )
         sel = prod[prod["Product_Name"].isin(picked)]
 
-    # 4) Revenue bar chart
+    # 4) Clean, simple bar chart
     fig_bar = px.bar(
         sel,
         x="Product_Name",
         y="revenue",
         labels={"Product_Name":"Product","revenue":"Revenue (€)"},
         title=f"{mode} by Revenue",
-        template="plotly_white"
+        template="plotly_white",
+        marker_line_width=0  # remove any border/striping
     )
     fig_bar.update_layout(xaxis_tickangle=-45, margin=dict(b=120))
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 5) 7-day forecast line chart
+    # 5) 7-Day Forecast for the same selection
     st.subheader("7-Day Sales Forecast")
-    sel_ids = sel["Product_ID"].tolist()
-    fc_sel = fc_all[fc_all["Product_ID"].isin(sel_ids)]
+    fc_sel = fc_all[fc_all["Product_ID"].isin(sel["Product_ID"].tolist())]
     fig_fc = px.line(
         fc_sel,
         x="ds",
@@ -359,41 +360,6 @@ with tabs[2]:
         margin=dict(t=30,b=40)
     )
     st.plotly_chart(fig_fc, use_container_width=True)
-
-    # 5) ABC classification grid + treemap
-    prod_abc = load_table("""
-      SELECT Product_ID, Product_Name, ABC_Category, revenue
-      FROM gold.product_abc
-      ORDER BY revenue DESC
-    """)
-    st.subheader("📦 ABC Classification of Products")
-
-    grid_col, tree_col = st.columns([2, 1], gap="large")
-    with grid_col:
-        from st_aggrid import AgGrid, GridOptionsBuilder
-        gb = GridOptionsBuilder.from_dataframe(prod_abc)
-        gb.configure_default_column(filterable=True, sortable=True, resizable=True)
-        grid_opts = gb.build()
-        AgGrid(
-            prod_abc,
-            gridOptions=grid_opts,
-            enable_enterprise_modules=False,
-            theme="alpine",
-            height=400
-        )
-
-    with tree_col:
-        fig_treemap = px.treemap(
-            prod_abc,
-            path=["ABC_Category", "Product_Name"],
-            values="revenue",
-            color="ABC_Category",
-            color_discrete_map={"A":"gold","B":"lightblue","C":"lightgray"},
-            title="Revenue by ABC Category",
-            template="plotly_white"
-        )
-        fig_treemap.update_layout(margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig_treemap, use_container_width=True)
 
 # If you want to let Claude suggest strategies per category:
     if st.button("Generate ABC-Based Product Strategies"):
