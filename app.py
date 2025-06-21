@@ -373,22 +373,21 @@ with tabs[2]:
 
     st.header("📦 ABC Classification of Products")
 
-    # 6) Equal-width columns for table + treemap
+    # 7) Build two equal columns for grid + treemap
     table_col, tree_col = st.columns([1, 1], gap="medium")
 
-    # Left: interactive grid
+    #  — Left: the grid —
     with table_col:
+        # subtitle and grid
         st.subheader("Top Products by ABC Category")
         from st_aggrid import AgGrid, GridOptionsBuilder
 
-        # select key cols
         grid_df = prod_abc[[
             "Product_ID", "Product_Name", "revenue", "revenue_pct", "ABC_Category"
         ]]
 
         gb = GridOptionsBuilder.from_dataframe(grid_df)
         gb.configure_default_column(filterable=True, sortable=True, resizable=True)
-        # highlight A rows
         gb.configure_column(
             "ABC_Category",
             cellStyle={
@@ -403,11 +402,11 @@ with tabs[2]:
             gridOptions=grid_opts,
             enable_enterprise_modules=False,
             theme="alpine",
-            height=450,
+            height=400,
             fit_columns_on_grid_load=True
         )
 
-    # Right: treemap
+    #  — Right: the treemap —
     with tree_col:
         st.subheader("Revenue by ABC Category")
         fig_tm = px.treemap(
@@ -423,7 +422,7 @@ with tabs[2]:
             marker_line_color="white"
         )
         fig_tm.update_layout(
-            margin=dict(l=10, r=10, t=0, b=10),
+            margin=dict(l=0, r=0, t=0, b=0),
             coloraxis_showscale=False
         )
         st.plotly_chart(fig_tm, use_container_width=True, height=400)
