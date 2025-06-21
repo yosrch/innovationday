@@ -403,7 +403,7 @@ with tabs[2]:
             gridOptions=grid_opts,
             enable_enterprise_modules=False,
             theme="alpine",
-            height=500,
+            height=450,
             fit_columns_on_grid_load=True
         )
 
