@@ -298,6 +298,7 @@ with tabs[1]:
                 st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
+# --- Tab 3: Top Products & 7-Day Forecast + ABC Classification ---
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
@@ -310,11 +311,14 @@ with tabs[2]:
     """)
 
     # 2) Load all product-level forecasts once
-    fc_all = load_table("""
-      SELECT ds, yhat, Product_ID
-      FROM gold.product_forecast
-      ORDER BY ds
-    """).merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
+    fc_all = (
+        load_table("""
+          SELECT ds, yhat, Product_ID
+          FROM gold.product_forecast
+          ORDER BY ds
+        """)
+        .merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
+    )
 
     # 3) Let user pick Top, Bottom or Custom
     mode = st.radio("Show products:", ["Top 5", "Bottom 5", "Custom"], horizontal=True)
@@ -338,10 +342,8 @@ with tabs[2]:
         labels={"Product_Name":"Product","revenue":"Revenue (€)"},
         title=f"{mode} by Revenue",
         template="plotly_white",
-        # remove marker_line_width here
     )
-    # now remove any border lines:
-    fig_bar.update_traces(marker_line_width=0, marker_line_color="rgba(0,0,0,0)")
+    fig_bar.update_traces(marker_line_width=0)
     fig_bar.update_layout(
         xaxis_tickangle=-45,
         margin=dict(b=120)
@@ -366,42 +368,54 @@ with tabs[2]:
     )
     st.plotly_chart(fig_fc, use_container_width=True)
 
-    # 4) ABC classification treemap + grid
+    # --- Now ABC Classification side-by-side ---
     prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
-    st.subheader("📦 ABC Classification of Products")
-    grid_col, tree_col = st.columns([2,1])
+
+    st.header("📦 ABC Classification of Products")
+
+    # 6) Equal-width columns for table + treemap
+    table_col, tree_col = st.columns([1, 1], gap="medium")
+
+    # Left: interactive grid
     with table_col:
-        st.subheader("Top Products by ABC Category")  # subtitle for alignment
+        st.subheader("Top Products by ABC Category")
         from st_aggrid import AgGrid, GridOptionsBuilder
-        
-        # prune to only the key columns
-        grid_df = prod_abc[["Product_ID", "Product_Name", "revenue", "revenue_pct", "ABC_Category"]]
-        
+
+        # select key cols
+        grid_df = prod_abc[[
+            "Product_ID", "Product_Name", "revenue", "revenue_pct", "ABC_Category"
+        ]]
+
         gb = GridOptionsBuilder.from_dataframe(grid_df)
         gb.configure_default_column(filterable=True, sortable=True, resizable=True)
         # highlight A rows
-        gb.configure_column("ABC_Category",
-                            cellStyle={"condition":"value=='A'", "style":{"backgroundColor":"#FFF4CE"}})
+        gb.configure_column(
+            "ABC_Category",
+            cellStyle={
+                "condition": "value == 'A'",
+                "style": {"backgroundColor": "#FFF4CE"}
+            }
+        )
         grid_opts = gb.build()
-        
+
         AgGrid(
             grid_df,
             gridOptions=grid_opts,
             enable_enterprise_modules=False,
             theme="alpine",
-            height=400
+            height=400,
+            fit_columns_on_grid_load=True
         )
-    
-    # 4) Treemap side
+
+    # Right: treemap
     with tree_col:
-        st.subheader("Revenue by ABC Category")  # subtitle for alignment
+        st.subheader("Revenue by ABC Category")
         fig_tm = px.treemap(
             prod_abc,
             path=["ABC_Category", "Product_Name"],
             values="revenue",
             color="revenue",
-            color_continuous_scale="Oranges",
-            title=""  # remove duplicate title
+            color_continuous_scale="Oranges"
         )
         fig_tm.update_traces(
             hovertemplate="<b>%{label}</b><br>€%{value:,.0f}<br>%{percentRoot:.1%} of total",
@@ -414,93 +428,34 @@ with tabs[2]:
         )
         st.plotly_chart(fig_tm, use_container_width=True, height=400)
 
-# If you want to let Claude suggest strategies per category:
+    # 7) Optional: Claude‐powered strategies
     if st.button("Generate ABC-Based Product Strategies"):
-        # Build the prompt from prod_abc DataFrame
         prompt = (
             "We have these product categories based on ABC analysis:\n"
             + "\n".join(
                 f"- {row['Product_Name']}: Category {row['ABC_Category']}, Revenue €{row['revenue']:,}"
-                for _, row in prod_abc.iterrows()   # <-- unpack index, row
+                for _, row in prod_abc.iterrows()
             )
             + "\n\nFor each category (A, B, C), recommend pricing or promotional strategies."
         )
-
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
             "Content-Type": "application/json"
         }
-        body = {
-            "messages": [
-                {"role": "user", "content": prompt}
-            ]
-        }
+        body = {"messages":[{"role":"user","content":prompt}]}
 
-        # Show a spinner while waiting
-        with st.spinner("Generating strategies (this may take up to 2 minutes)…"):
-            try:
-                r = requests.post(
-                    CLAUDE_URL,
-                    json=body,
-                    headers=headers,
-                    timeout=120  # <-- give it up to two minutes
-                )
-            except requests.exceptions.ReadTimeout:
-                st.error("The request timed out (took over 2 minutes). Try again or switch to a lighter model.")
+        with st.spinner("Generating strategies…"):
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            if r.status_code != 200:
+                st.error(f"Invocation failed: {r.status_code}")
+                st.code(r.text, language="json")
                 st.stop()
-            except Exception as e:
-                st.error("Failed to generate product strategies via Claude.")
-                st.exception(e)
-                st.stop()
+            text = r.json()["choices"][0]["message"]["content"]
 
-        # Now check the status code
-        if r.status_code != 200:
-            st.error(f"Invocation failed with status {r.status_code}")
-            st.code(r.text, language="json")
-            st.stop()
-
-        resp_json = r.json()
-        text = resp_json["choices"][0]["message"]["content"]
-
-        for line in text.split("\n"):
+        for line in text.splitlines():
             if line.strip():
                 st.write(f"- {line.strip()}")
 
-
-
-@st.cache_data(ttl=600)
-def get_data_context() -> str:
-    # 1) KPIs
-    df_kpis = load_table("""
-      SELECT
-        SUM(Total_Amount)  AS total_revenue,
-        AVG(Total_Amount)  AS avg_order_value,
-        COUNT(DISTINCT Customer_ID) AS unique_customers
-      FROM gold.fact_sales
-    """)
-    # 2) Segments
-    seg_sizes = load_table("""
-      SELECT segment, COUNT(*) AS count
-      FROM gold.customer_segments
-      GROUP BY segment
-      ORDER BY segment
-    """)
-    # 3) ABC categories
-    prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
-
-    # Build a single string
-    context = (
-        f"KPI: Revenue €{df_kpis.total_revenue[0]:,.0f}, "
-        f"AOV €{df_kpis.avg_order_value[0]:,.2f}, "
-        f"Customers {df_kpis.unique_customers[0]:,}\n\n"
-        "Segments:\n"
-        + "\n".join(f"- {int(r.segment)}: {int(r['count']):,} customers"
-                    for _, r in seg_sizes.iterrows())
-        + "\n\nProduct ABC Categories:\n"
-        + ", ".join(f"{row.Product_Name}({row.ABC_Category})"
-                    for _, row in prod_abc.iterrows())
-    )
-    return context
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
