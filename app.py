@@ -299,57 +299,76 @@ with tabs[1]:
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
-    st.header("Top Products & 7-Day Forecast")
+    st.header("Top & Bottom Products by Revenue")
 
-    # Top 10 products by revenue (include Product_ID)
+    # 1) Load all product revenues
     prod = load_table("""
       SELECT Product_ID, Product_Name, SUM(Total_Amount) AS revenue
       FROM gold.fact_sales
       GROUP BY Product_ID, Product_Name
       ORDER BY revenue DESC
-      LIMIT 10
     """)
-    fig_prod = px.bar(
-        prod,
+
+    # 2) Let user switch between Top 10, Bottom 10 or Custom list
+    choice = st.radio(
+        "Show…",
+        ("Top 10", "Bottom 10", "Custom selection"),
+        horizontal=True
+    )
+    if choice in ("Top 10", "Bottom 10"):
+        df_sel = prod.head(10) if choice == "Top 10" else prod.tail(10)
+        selected_products = df_sel["Product_Name"].tolist()
+    else:
+        selected_products = st.multiselect(
+            "Pick products to plot:",
+            options=prod["Product_Name"].tolist(),
+            default=prod.head(10)["Product_Name"].tolist()
+        )
+
+    # 3) Bar chart of the chosen slice
+    df_bar = prod[prod["Product_Name"].isin(selected_products)]
+    fig_bar = px.bar(
+        df_bar,
         x="Product_Name",
         y="revenue",
-        labels={"Product_Name": "Product", "revenue": "Total Revenue (€)"},
-        title="Top 10 Products by Revenue",
+        labels={"Product_Name":"Product", "revenue":"Revenue (€)"},
+        title=f"{choice} by Revenue",
         template="plotly_white"
     )
-    fig_prod.update_traces(hovertemplate="%{y:,.0f} €<br>%{x}")
-    fig_prod.update_layout(
-        xaxis_title="Product",
-        yaxis_title="Revenue (€)"
+    fig_bar.update_layout(
+        xaxis=dict(tickangle=-45),
+        margin=dict(t=40,b=100)
     )
-    st.plotly_chart(fig_prod, use_container_width=True)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 7-day forecast for the top product
-    top_prod_id   = prod.iloc[0]["Product_ID"]
-    top_prod_name = prod.iloc[0]["Product_Name"]
-    st.markdown(f"**7-Day Sales Forecast for {top_prod_name}**")
+    # 4) 7-day forecast for all selected products
+    st.subheader("7-Day Sales Forecast")
+    fc_all = load_table("SELECT Product_ID, ds, yhat FROM gold.product_forecast")
+    fc_all["ds"] = pd.to_datetime(fc_all["ds"])
+    today_dt = pd.Timestamp(dt.date.today())
+    fc_future = fc_all[fc_all["ds"].dt.date > today_dt.date()]
 
-    prod_fc = load_table(f"""
-      SELECT ds, yhat
-      FROM gold.product_forecast
-      WHERE Product_ID = '{top_prod_id}'
-      ORDER BY ds
-    """)
-    prod_fc["ds"] = pd.to_datetime(prod_fc["ds"])
-    fig_pfc = px.line(
-        prod_fc,
-        x="ds",
-        y="yhat",
-        labels={"ds": "Date", "yhat": f"Forecasted Sales (€)"},
-        title=f"7-Day Sales Forecast for {top_prod_name}",
-        template="plotly_white"
-    )
-    fig_pfc.update_traces(hovertemplate="%{y:,.0f} €<br>%{x|%Y-%m-%d}", name="Forecast")
-    fig_pfc.update_layout(
-        xaxis_title="Date",
-        yaxis_title="Forecasted Sales (€)"
-    )
-    st.plotly_chart(fig_pfc, use_container_width=True)
+    # map names back to IDs
+    name_to_id = dict(zip(prod["Product_Name"], prod["Product_ID"]))
+    selected_ids = [name_to_id[n] for n in selected_products if n in name_to_id]
+
+    if selected_ids:
+        fig_fc2 = px.line(
+            fc_future[fc_future["Product_ID"].isin(selected_ids)],
+            x="ds",
+            y="yhat",
+            color="Product_Name",
+            labels={"ds":"Date", "yhat":"Forecast (€)", "Product_Name":"Product"},
+            template="plotly_white"
+        )
+        fig_fc2.update_traces(mode="lines+markers", marker=dict(size=4), line=dict(width=2))
+        fig_fc2.update_layout(
+            xaxis=dict(tickformat="%d.%m.%Y", tickangle=45),
+            margin=dict(t=20,b=40)
+        )
+        st.plotly_chart(fig_fc2, use_container_width=True)
+    else:
+        st.info("Select one or more products above to view their forecasts.")
 
 
     # 1) Load ABC classifications
