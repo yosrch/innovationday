@@ -375,7 +375,7 @@ with tabs[2]:
         gb = GridOptionsBuilder.from_dataframe(prod_abc)
         gb.configure_default_column(filterable=True, sortable=True, resizable=True)
         grid_opts = gb.build()
-        AgGrid(prod_abc, gridOptions=grid_opts, enable_enterprise_modules=False, theme="alpine", height=350)
+        AgGrid(prod_abc, gridOptions=grid_opts, enable_enterprise_modules=False, theme="alpine", height=400)
     with tree_col:
         fig_tm = px.treemap(
             prod_abc,
@@ -386,7 +386,7 @@ with tabs[2]:
             title="Revenue by ABC Category"
         )
         fig_tm.update_layout(margin=dict(l=0,r=0,t=30,b=0))
-        st.plotly_chart(fig_tm, use_container_width=True)
+        st.plotly_chart(fig_tm, use_container_width=True, height=400)
 
 # If you want to let Claude suggest strategies per category:
     if st.button("Generate ABC-Based Product Strategies"):
