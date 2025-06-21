@@ -380,6 +380,7 @@ with tabs[2]:
     with table_col:
         # subtitle and grid
         st.subheader("Top Products by ABC Category")
+        st.write("") 
         from st_aggrid import AgGrid, GridOptionsBuilder
 
         grid_df = prod_abc[[
