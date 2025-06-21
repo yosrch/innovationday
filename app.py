@@ -338,9 +338,14 @@ with tabs[2]:
         labels={"Product_Name":"Product","revenue":"Revenue (€)"},
         title=f"{mode} by Revenue",
         template="plotly_white",
-        marker_line_width=0  # remove any border/striping
+        # remove marker_line_width here
     )
-    fig_bar.update_layout(xaxis_tickangle=-45, margin=dict(b=120))
+    # now remove any border lines:
+    fig_bar.update_traces(marker_line_width=0)
+    fig_bar.update_layout(
+        xaxis_tickangle=-45,
+        margin=dict(b=120)
+    )
     st.plotly_chart(fig_bar, use_container_width=True)
 
     # 5) 7-Day Forecast for the same selection
