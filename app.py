@@ -335,35 +335,27 @@ with tabs[2]:
         title=f"{choice} by Revenue",
         template="plotly_white"
     )
+    # ensure solid bars
+    fig_bar.update_traces(marker_color="#636efa", opacity=1.0)
     fig_bar.update_layout(
         xaxis=dict(tickangle=-45),
         margin=dict(t=40, b=100)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 4) 7-day forecast for all selected products
+    # 4) 7-day forecast for the selected products
     st.subheader("7-Day Sales Forecast")
     fc_all = load_table("SELECT Product_ID, ds, yhat FROM gold.product_forecast")
     fc_all["ds"] = pd.to_datetime(fc_all["ds"])
-    today_dt = pd.Timestamp(dt.date.today())
-    fc_future = fc_all[fc_all["ds"].dt.date > today_dt.date()]
 
-    # map names back to IDs
-    name_to_id = dict(zip(prod["Product_Name"], prod["Product_ID"]))
-    selected_ids = [name_to_id[n] for n in selected_products if n in name_to_id]
+    # pull the last seven unique dates available
+    last_dates = sorted(fc_all["ds"].dt.date.unique())[-7:]
+    fc_plot = (
+        fc_all[fc_all["ds"].dt.date.isin(last_dates)]
+        .merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
+    )
 
-    if selected_ids:
-        # merge to bring Product_Name into the forecast DF
-        fc_plot = (
-            fc_future
-            .loc[fc_future["Product_ID"].isin(selected_ids)]
-            .merge(
-                prod[["Product_ID", "Product_Name"]],
-                on="Product_ID",
-                how="left"
-            )
-        )
-
+    if not fc_plot.empty and selected_products:
         fig_fc2 = px.line(
             fc_plot,
             x="ds",
@@ -376,40 +368,30 @@ with tabs[2]:
             },
             template="plotly_white"
         )
-        fig_fc2.update_traces(
-            mode="lines+markers",
-            marker=dict(size=4),
-            line=dict(width=2)
-        )
+        # lines only
+        fig_fc2.update_traces(mode="lines", line=dict(width=2))
         fig_fc2.update_layout(
-            xaxis=dict(
-                tickformat="%d.%m.%Y",
-                tickangle=45
-            ),
+            xaxis=dict(tickformat="%d.%m.%Y", tickangle=45),
             margin=dict(t=20, b=40)
         )
         st.plotly_chart(fig_fc2, use_container_width=True)
-
     else:
-        st.info("Select one or more products above to view their forecasts.")
+        st.info("No forecast data available for your selection.")
 
+    # 5) ABC classification grid + treemap
+    prod_abc = load_table("""
+      SELECT Product_ID, Product_Name, ABC_Category, revenue
+      FROM gold.product_abc
+      ORDER BY revenue DESC
+    """)
+    st.subheader("📦 ABC Classification of Products")
 
-    # 1) Load ABC classifications
-    prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
-
-    st.subheader("📦 ABC Classification of Top Products")
-
-    # 2) Create two columns: left for grid, right for treemap
-    grid_col, tree_col = st.columns([2, 1])
-
-    # 3) In the left column, show AgGrid
+    grid_col, tree_col = st.columns([2, 1], gap="large")
     with grid_col:
         from st_aggrid import AgGrid, GridOptionsBuilder
-
         gb = GridOptionsBuilder.from_dataframe(prod_abc)
         gb.configure_default_column(filterable=True, sortable=True, resizable=True)
         grid_opts = gb.build()
-
         AgGrid(
             prod_abc,
             gridOptions=grid_opts,
@@ -418,17 +400,15 @@ with tabs[2]:
             height=400
         )
 
-    # 4) In the right column, show a Plotly treemap
     with tree_col:
-        import plotly.express as px
-
         fig_treemap = px.treemap(
             prod_abc,
             path=["ABC_Category", "Product_Name"],
             values="revenue",
             color="ABC_Category",
             color_discrete_map={"A":"gold","B":"lightblue","C":"lightgray"},
-            title="Revenue by ABC Category"
+            title="Revenue by ABC Category",
+            template="plotly_white"
         )
         fig_treemap.update_layout(margin=dict(l=0, r=0, t=30, b=0))
         st.plotly_chart(fig_treemap, use_container_width=True)
