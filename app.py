@@ -299,9 +299,9 @@ with tabs[1]:
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
-    st.header("Top & Bottom Products by Revenue")
+    st.header("Top Products & 7-Day Forecast")
 
-    # 1) Load all product revenues
+    # 1) Load full revenue summary
     prod = load_table("""
       SELECT Product_ID, Product_Name, SUM(Total_Amount) AS revenue
       FROM gold.fact_sales
@@ -309,74 +309,56 @@ with tabs[2]:
       ORDER BY revenue DESC
     """)
 
-    # 2) Let user switch between Top 10, Bottom 10 or Custom list
-    choice = st.radio(
-        "Show…",
-        ("Top 10", "Bottom 10", "Custom selection"),
-        horizontal=True
-    )
-    if choice in ("Top 10", "Bottom 10"):
-        df_sel = prod.head(10) if choice == "Top 10" else prod.tail(10)
-        selected_products = df_sel["Product_Name"].tolist()
-    else:
-        selected_products = st.multiselect(
-            "Pick products to plot:",
-            options=prod["Product_Name"].tolist(),
-            default=prod.head(10)["Product_Name"].tolist()
-        )
+    # 2) Load all forecasts once
+    fc_all = load_table("""
+      SELECT ds, yhat, Product_ID
+      FROM gold.product_forecast
+      ORDER BY ds
+    """)
+    # join product names
+    fc_all = fc_all.merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
 
-    # 3) Bar chart of the chosen slice
-    df_bar = prod[prod["Product_Name"].isin(selected_products)]
+    # 3) Selector for Top 5 / Bottom 5 / Custom
+    mode = st.radio("Show products:", ["Top 5", "Bottom 5", "Custom"], horizontal=True)
+    if mode == "Top 5":
+        sel = prod.head(5)
+    elif mode == "Bottom 5":
+        sel = prod.tail(5)
+    else:
+        names = prod["Product_Name"].tolist()
+        picked = st.multiselect("Pick products to include:", options=names, default=names[:5])
+        sel = prod[prod["Product_Name"].isin(picked)]
+
+    # 4) Revenue bar chart
     fig_bar = px.bar(
-        df_bar,
+        sel,
         x="Product_Name",
         y="revenue",
-        labels={"Product_Name": "Product", "revenue": "Revenue (€)"},
-        title=f"{choice} by Revenue",
+        labels={"Product_Name":"Product","revenue":"Revenue (€)"},
+        title=f"{mode} by Revenue",
         template="plotly_white"
     )
-    # ensure solid bars
-    fig_bar.update_traces(marker_color="#636efa", opacity=1.0)
-    fig_bar.update_layout(
-        xaxis=dict(tickangle=-45),
-        margin=dict(t=40, b=100)
-    )
+    fig_bar.update_layout(xaxis_tickangle=-45, margin=dict(b=120))
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 4) 7-day forecast for the selected products
+    # 5) 7-day forecast line chart
     st.subheader("7-Day Sales Forecast")
-    fc_all = load_table("SELECT Product_ID, ds, yhat FROM gold.product_forecast")
-    fc_all["ds"] = pd.to_datetime(fc_all["ds"])
-
-    # pull the last seven unique dates available
-    last_dates = sorted(fc_all["ds"].dt.date.unique())[-7:]
-    fc_plot = (
-        fc_all[fc_all["ds"].dt.date.isin(last_dates)]
-        .merge(prod[["Product_ID","Product_Name"]], on="Product_ID", how="left")
+    sel_ids = sel["Product_ID"].tolist()
+    fc_sel = fc_all[fc_all["Product_ID"].isin(sel_ids)]
+    fig_fc = px.line(
+        fc_sel,
+        x="ds",
+        y="yhat",
+        color="Product_Name",
+        labels={"ds":"Date","yhat":"Forecast (€)"},
+        template="plotly_white"
     )
-
-    if not fc_plot.empty and selected_products:
-        fig_fc2 = px.line(
-            fc_plot,
-            x="ds",
-            y="yhat",
-            color="Product_Name",
-            labels={
-                "ds": "Date",
-                "yhat": "Forecast (€)",
-                "Product_Name": "Product"
-            },
-            template="plotly_white"
-        )
-        # lines only
-        fig_fc2.update_traces(mode="lines", line=dict(width=2))
-        fig_fc2.update_layout(
-            xaxis=dict(tickformat="%d.%m.%Y", tickangle=45),
-            margin=dict(t=20, b=40)
-        )
-        st.plotly_chart(fig_fc2, use_container_width=True)
-    else:
-        st.info("No forecast data available for your selection.")
+    fig_fc.update_layout(
+        legend_title="Product",
+        xaxis_tickformat="%d.%m.%Y",
+        margin=dict(t=30,b=40)
+    )
+    st.plotly_chart(fig_fc, use_container_width=True)
 
     # 5) ABC classification grid + treemap
     prod_abc = load_table("""
