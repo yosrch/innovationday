@@ -370,22 +370,48 @@ with tabs[2]:
     prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
     st.subheader("📦 ABC Classification of Products")
     grid_col, tree_col = st.columns([2,1])
-    with grid_col:
+    with table_col:
+        st.subheader("Top Products by ABC Category")  # subtitle for alignment
         from st_aggrid import AgGrid, GridOptionsBuilder
-        gb = GridOptionsBuilder.from_dataframe(prod_abc)
+        
+        # prune to only the key columns
+        grid_df = prod_abc[["Product_ID", "Product_Name", "revenue", "revenue_pct", "ABC_Category"]]
+        
+        gb = GridOptionsBuilder.from_dataframe(grid_df)
         gb.configure_default_column(filterable=True, sortable=True, resizable=True)
+        # highlight A rows
+        gb.configure_column("ABC_Category",
+                            cellStyle={"condition":"value=='A'", "style":{"backgroundColor":"#FFF4CE"}})
         grid_opts = gb.build()
-        AgGrid(prod_abc, gridOptions=grid_opts, enable_enterprise_modules=False, theme="alpine", height=400)
+        
+        AgGrid(
+            grid_df,
+            gridOptions=grid_opts,
+            enable_enterprise_modules=False,
+            theme="alpine",
+            height=400
+        )
+    
+    # 4) Treemap side
     with tree_col:
+        st.subheader("Revenue by ABC Category")  # subtitle for alignment
         fig_tm = px.treemap(
             prod_abc,
-            path=["ABC_Category","Product_Name"],
+            path=["ABC_Category", "Product_Name"],
             values="revenue",
-            color="ABC_Category",
-            color_discrete_map={"A":"gold","B":"lightblue","C":"lightgray"},
-            title="Revenue by ABC Category"
+            color="revenue",
+            color_continuous_scale="Oranges",
+            title=""  # remove duplicate title
         )
-        fig_tm.update_layout(margin=dict(l=0,r=0,t=30,b=0))
+        fig_tm.update_traces(
+            hovertemplate="<b>%{label}</b><br>€%{value:,.0f}<br>%{percentRoot:.1%} of total",
+            marker_line_width=1,
+            marker_line_color="white"
+        )
+        fig_tm.update_layout(
+            margin=dict(l=10, r=10, t=0, b=10),
+            coloraxis_showscale=False
+        )
         st.plotly_chart(fig_tm, use_container_width=True, height=400)
 
 # If you want to let Claude suggest strategies per category:
