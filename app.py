@@ -5,10 +5,11 @@ import pandas as pd
 from databricks import sql
 import plotly.express as px
 import requests
+import datetime as dt
 
-@st.cache_data(ttl=600)
-def get_data_context() -> str:
-
+# ——————————————————————————————————————————————————————
+# Global CSS & page config
+# ——————————————————————————————————————————————————————
 st.markdown(
     """
     <style>
@@ -29,18 +30,20 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
+st.title("📊 Consumer Goods Analytics Demo")
+
 # Load environment variables
 load_dotenv()
-
-# Initialize CLAUDE client
 CLAUDE_URL   = os.getenv("CLAUDE_ENDPOINT_URL")
 CLAUDE_TOKEN = os.getenv("CLAUDE_BEARER_TOKEN")
-
-# Databricks connection settings
 DATABRICKS_SERVER = os.getenv("DATABRICKS_SERVER_HOSTNAME")
 DATABRICKS_PATH   = os.getenv("DATABRICKS_HTTP_PATH")
 DATABRICKS_TOKEN  = os.getenv("DATABRICKS_ACCESS_TOKEN")
 
+# ——————————————————————————————————————————————————————
+# Data loading helpers
+# ——————————————————————————————————————————————————————
 @st.cache_data(ttl=600)
 def load_table(query: str) -> pd.DataFrame:
     conn = sql.connect(
@@ -61,10 +64,49 @@ def load_table(query: str) -> pd.DataFrame:
                 pass
     return pd.DataFrame(data, columns=cols)
 
-st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
-st.title("📊 Consumer Goods Analytics Demo")
+@st.cache_data(ttl=600)
+def get_data_context() -> str:
+    """
+    Fetches current KPIs, segment counts, and ABC categories
+    and returns them as a single plaintext context blob.
+    """
+    # 1) KPIs
+    df_kpis = load_table("""
+      SELECT
+        SUM(Total_Amount)            AS total_revenue,
+        AVG(Total_Amount)            AS avg_order_value,
+        COUNT(DISTINCT Customer_ID)  AS unique_customers
+      FROM gold.fact_sales
+    """)
+    # 2) Segment counts
+    seg_sizes = load_table("""
+      SELECT segment, COUNT(*) AS count
+      FROM gold.customer_segments
+      GROUP BY segment
+      ORDER BY segment
+    """)
+    total = seg_sizes["count"].sum()
+    # 3) ABC categories
+    prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
 
-# Create top-level tabs
+    # Build lines
+    lines = [
+        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
+        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
+        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
+        "",
+        "🔖 Segments:"
+    ]
+    for _, row in seg_sizes.iterrows():
+        pct = row["count"] / total * 100
+        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
+    lines.append("")
+    lines.append("📦 ABC Categories:")
+    for _, row in prod_abc.iterrows():
+        lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
+
+    return "\n".join(lines)
+
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # OpenAI-powered marketing tips
