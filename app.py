@@ -6,6 +6,9 @@ from databricks import sql
 import plotly.express as px
 import requests
 
+@st.cache_data(ttl=600)
+def get_data_context() -> str:
+
 st.markdown(
     """
     <style>
