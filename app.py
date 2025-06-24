@@ -345,8 +345,8 @@ with tabs[1]:
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
 
-            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
-                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
+            pretty = format_insights(msg)
+            st.markdown(pretty, unsafe_allow_html=True)
 
     # 6) Strategies expander (open by default, button “Generate”)
     with st.expander("🎯 Segment-Specific Strategies", expanded=True):
