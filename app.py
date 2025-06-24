@@ -148,31 +148,6 @@ def format_insights(raw: str) -> str:
     md += bullets
     return "\n".join(md)
 
-import pandas as pd
-
-def format_segment_strategies_to_table(text):
-    rows = []
-    current_segment = ""
-
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("## Segment"):
-            current_segment = line.replace("## ", "").strip()
-        elif line.startswith("* **Channel"):
-            if "**:" in line:
-                recommendation = line.split("**:")[1].strip()
-                rows.append([current_segment, "Channel & Approach", recommendation])
-        elif line.startswith("* **Offer"):
-            if "**:" in line:
-                recommendation = line.split("**:")[1].strip()
-                rows.append([current_segment, "Offer & Category", recommendation])
-
-    df = pd.DataFrame(rows, columns=["Segment", "Type", "Recommendation"])
-    return df
-
-
 
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
@@ -406,8 +381,9 @@ with tabs[1]:
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
 
-                df = format_segment_strategies_to_table(msg)
-                st.dataframe(df, use_container_width=True)
+            st.code(msg, language="markdown")
+            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
+                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
