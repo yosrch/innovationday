@@ -636,6 +636,9 @@ with tabs[3]:
         st.session_state.messages.append({"role":"user","content":prompt})
         chat_container.chat_message("user").write(prompt)
 
+        st.session_state.chat_input = ""
+
+
         # build context + call Claude
         ctx = get_data_context()
         body = {
