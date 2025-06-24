@@ -151,7 +151,6 @@ def format_insights(raw: str) -> str:
 import pandas as pd
 
 def format_segment_strategies_to_table(text):
-    # Create structured list of rows
     rows = []
     current_segment = ""
 
@@ -162,9 +161,13 @@ def format_segment_strategies_to_table(text):
         if line.startswith("## Segment"):
             current_segment = line.replace("## ", "").strip()
         elif line.startswith("* **Channel"):
-            rows.append([current_segment, "Channel & Approach", line.split("**:")[1].strip()])
+            if "**:" in line:
+                recommendation = line.split("**:")[1].strip()
+                rows.append([current_segment, "Channel & Approach", recommendation])
         elif line.startswith("* **Offer"):
-            rows.append([current_segment, "Offer & Category", line.split("**:")[1].strip()])
+            if "**:" in line:
+                recommendation = line.split("**:")[1].strip()
+                rows.append([current_segment, "Offer & Category", recommendation])
 
     df = pd.DataFrame(rows, columns=["Segment", "Type", "Recommendation"])
     return df
@@ -407,7 +410,6 @@ with tabs[1]:
                 st.dataframe(df, use_container_width=True)
 
 # --- Tab 3: Product Insights ---
-# --- Tab 3: Top Products & 7-Day Forecast + ABC Classification ---
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
