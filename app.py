@@ -569,7 +569,7 @@ tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # LEFT-HAND PANEL — full-height description
+    # — Sidebar (full-height) left panel—unchanged —
     st.sidebar.markdown(
         """
         <div style="
@@ -590,11 +590,9 @@ with tabs[3]:
         unsafe_allow_html=True,
     )
 
-    # MAIN CHAT AREA
     st.markdown("## 💬 Ask the Data")
-    chat_container = st.container()
 
-    # initialize chat history
+    # Initialize session history
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
@@ -603,64 +601,66 @@ with tabs[3]:
             }
         ]
 
-    # render history
+    # 1) Render the chat history in one container
+    chat_container = st.container()
     for msg in st.session_state.messages:
         chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # stick input to bottom
+    # 2) Add the fixed-footer CSS
     st.markdown(
         """
         <style>
-          .fixed-input {
+          .footer-input {
             position: fixed;
             bottom: 0;
-            width: 75%;           /* match your main pane width */
+            left: 25%;        /* adjust so it's to the right of the sidebar */
+            width: 75%;       /* main pane width */
             padding: 1rem;
             background: #f7f7f7;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+            z-index: 1000;
           }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # place the input inside a fixed footer div
-    user_q = st.text_input(
-        "Ask me about KPIs, segments or products…",
-        key="persisted_input",
-        placeholder="Type your question here…"
+    # 3) Now create the input box
+    prompt = st.text_input(
+        "",  # no label
+        key="chat_input",
+        placeholder="Ask me about KPIs, segments or products…",
+        label_visibility="hidden"
     )
-    if user_q:
-        # record & display user
-        st.session_state.messages.append({"role":"user","content":user_q})
-        chat_container.chat_message("user").write(user_q)
 
-        # build prompt + call Claude
-        data_ctx = get_data_context()
-        prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
+    # 4) When the user submits…
+    if prompt:
+        # record & display user
+        st.session_state.messages.append({"role":"user","content":prompt})
+        chat_container.chat_message("user").write(prompt)
+
+        # build context + call Claude
+        ctx = get_data_context()
         body = {
             "messages":[
                 {"role":"system","content":"You are an expert data analyst assistant. Answer concisely in bullet points without repeating full context."},
                 {"role":"assistant","content":"Understood, here’s my answer:"},
-                {"role":"user","content":prompt}
+                {"role":"user","content":f"Context:\n{ctx}\n\nQuestion: {prompt}"}
             ]
         }
         headers = {"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-        if r.status_code!=200:
+
+        if r.status_code != 200:
             st.error(f"Error {r.status_code}")
             st.code(r.text, language="json")
         else:
             reply = r.json()["choices"][0]["message"]["content"]
-            # strip any <<…>> tokens
+            # strip <<…>>
             cleaned = "\n".join(
                 line for line in reply.splitlines()
                 if not (line.startswith("<<") and line.endswith(">>"))
             )
-            # record & display assistant
             st.session_state.messages.append({"role":"assistant","content":cleaned})
             chat_container.chat_message("assistant").write(cleaned)
-
-    # push footer so it doesn’t overlap content
-    st.markdown("<div style='height:100px;'></div>", unsafe_allow_html=True)
