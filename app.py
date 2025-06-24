@@ -148,6 +148,32 @@ def format_insights(raw: str) -> str:
     md += bullets
     return "\n".join(md)
 
+def format_segment_strategies_to_table(text):
+    import re
+    import pandas as pd
+    rows = []
+    current_segment = ""
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        # Match the segment title like: ## Segment 0 (1425 customers)
+        if re.match(r"^## Segment \d+", line):
+            current_segment = line.replace("##", "").strip()
+            continue
+
+        # Match lines like: * **Channel:** some text
+        match = re.match(r"\* \*\*(Channel|Offer):\*\* (.+)", line)
+        if match:
+            rec_type = match.group(1).strip()  # "Channel" or "Offer"
+            rec_text = match.group(2).strip()
+            rows.append([current_segment, rec_type, rec_text])
+
+    return pd.DataFrame(rows, columns=["Segment", "Type", "Recommendation"])
+
+
 
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
@@ -380,10 +406,11 @@ with tabs[1]:
                     st.code(r.text, language="json")
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
-
-            st.code(msg, language="markdown")
-            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
-                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
+            df = format_segment_strategies_to_table(msg)
+            st.dataframe(df, use_container_width=True)
+            #st.code(msg, language="markdown")
+            #for line in [l.strip() for l in msg.splitlines() if l.strip()]:
+            #    st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
