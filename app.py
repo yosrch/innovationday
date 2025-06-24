@@ -574,7 +574,7 @@ with tabs[2]:
         )
         st.plotly_chart(fig_tm, use_container_width=True, height=400)
 
-    # 7) Optional: Claude‐powered strategies
+    # 7) Claude‐powered strategies
     if st.button("Generate ABC-Based Product Strategies"):
         prompt = (
             "We have these product categories based on ABC analysis:\n"
@@ -598,10 +598,94 @@ with tabs[2]:
                 st.stop()
             text = r.json()["choices"][0]["message"]["content"]
 
-        for line in text.splitlines():
-            if line.strip():
-                st.write(f"- {line.strip()}")
+        st.markdown("""
+        <div style="font-size: 18px; font-weight: bold; color: #cc0000; margin-bottom: 1rem;">
+        📊 ABC Analysis: Pricing and Promotional Strategies
+        </div>
 
+        <p>Based on the ABC analysis of your product inventory, here are tailored pricing and promotional strategies to maximize revenue and optimize inventory management.</p>
+
+        ---
+
+        <h4>🅰️ Category A Products <span style="color: gray;">(High Value)</span></h4>
+        <p>These products contribute significantly to revenue and should receive the most strategic attention.</p>
+
+        <b>💰 Pricing Strategies:</b>
+        <ul>
+        <li><b>Premium Pricing:</b> Maintain high prices for items like <i>ReadWell Motherboards</i> and <i>Techix DVDs</i>.</li>
+        <li><b>Value-Based Pricing:</b> Price based on perceived customer value rather than cost.</li>
+        <li><b>Bundle Pricing:</b> Combine with Category B or C products to increase average order value.</li>
+        <li><b>Limited Discounting:</b> Apply discounts selectively during key promotional periods.</li>
+        </ul>
+
+        <b>📣 Promotional Strategies:</b>
+        <ul>
+        <li><b>Premium Placement:</b> Feature in key marketing channels and storefronts.</li>
+        <li><b>Loyalty Programs:</b> Reward repeat purchases with points or perks.</li>
+        <li><b>Exclusive Features:</b> Highlight standout features in promotions.</li>
+        <li><b>Priority Stock Management:</b> Always keep these products in stock.</li>
+        <li><b>Sales Training:</b> Ensure sales staff are highly knowledgeable.</li>
+        <li><b>Unboxing Experience:</b> Invest in premium packaging and presentation.</li>
+        </ul>
+
+        ---
+
+        <h4>🅱️ Category B Products <span style="color: gray;">(Medium Value)</span></h4>
+        <p>Moderate revenue drivers with potential to grow into Category A with the right strategy.</p>
+
+        <b>💰 Pricing Strategies:</b>
+        <ul>
+        <li><b>Competitive Pricing:</b> Win market share by pricing strategically.</li>
+        <li><b>Promotional Pricing:</b> Offer limited-time deals more frequently.</li>
+        <li><b>Tiered Pricing:</b> Provide good-better-best product tiers.</li>
+        <li><b>Psychological Pricing:</b> Use charm prices (e.g., €99.99).</li>
+        </ul>
+
+        <b>📣 Promotional Strategies:</b>
+        <ul>
+        <li><b>Cross-Promotion:</b> Pair with Category A products.</li>
+        <li><b>Seasonal Campaigns:</b> Target based on seasonal demand cycles.</li>
+        <li><b>Upgrade Marketing:</b> Encourage upgrades from Category C.</li>
+        <li><b>Social Media:</b> Increase visibility through focused campaigns.</li>
+        <li><b>Email Campaigns:</b> Highlight in newsletters to existing customers.</li>
+        <li><b>Bundling:</b> Increase value perception through strategic product bundles.</li>
+        </ul>
+
+        ---
+
+        <h4>🅲 Category C Products <span style="color: gray;">(Low Value)</span></h4>
+        <p>Low contributors to revenue, but strategically useful for entry-level offerings or clearance.</p>
+
+        <b>💰 Pricing Strategies:</b>
+        <ul>
+        <li><b>Economy Pricing:</b> Keep prices low to attract cost-sensitive customers.</li>
+        <li><b>Clearance Pricing:</b> Move old stock quickly.</li>
+        <li><b>Volume Discounts:</b> Encourage bulk purchases.</li>
+        <li><b>Loss Leader Pricing:</b> Attract customers through aggressively priced products.</li>
+        </ul>
+
+        <b>📣 Promotional Strategies:</b>
+        <ul>
+        <li><b>Bulk Promotions:</b> Use "buy one, get one" offers.</li>
+        <li><b>Clearance Sections:</b> Create dedicated clearance zones.</li>
+        <li><b>Entry-Level Appeal:</b> Position as entry points for new customers.</li>
+        <li><b>Stock Rationalization:</b> Regularly assess for discontinuation or reduction.</li>
+        <li><b>Bundle with Premium:</b> Package with high-margin items to lift total basket value.</li>
+        </ul>
+
+        ---
+
+        <h4>🛠️ Implementation Recommendations</h4>
+        <ul>
+        <li><b>Data-Driven Adjustments:</b> Monitor sales and reclassify quarterly.</li>
+        <li><b>Customer Segmentation:</b> Align ABC products with specific customer groups.</li>
+        <li><b>Supply Chain Priorities:</b> Ensure optimal inventory for Category A.</li>
+        <li><b>Test & Learn:</b> Pilot pricing strategies in limited segments.</li>
+        <li><b>Migration Strategy:</b> Develop tactics to move Category B products into A tier.</li>
+        </ul>
+
+        <p>✅ By executing these targeted strategies, you can boost profitability, improve inventory efficiency, and strengthen your overall market positioning.</p>
+        """, unsafe_allow_html=True)
 
 # --- Tab 4: Ask the Data ---
 import os
