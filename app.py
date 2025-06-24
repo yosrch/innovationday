@@ -516,7 +516,7 @@ with tabs[3]:
     info_col, chat_col = st.columns([1, 3], gap="small")
 
     # — Left: inline-styled info panel —
-      with info_col:
+    with info_col:
         st.markdown(
             """
             <div style="
@@ -531,7 +531,7 @@ with tabs[3]:
             </div>
             """,
             unsafe_allow_html=True
-        )
+        )  
 
     # — Right: the actual chat UI —
     with chat_col:
