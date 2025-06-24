@@ -563,9 +563,6 @@ def get_data_context() -> str:
     )
     return ctx
 
-# ─── TAB LAYOUT ────────────────────────────────────────────────────────────────
-tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
-# ... your Tab 0–2 code remains unchanged ...
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
