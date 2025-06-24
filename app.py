@@ -124,6 +124,31 @@ def get_data_context() -> str:
 
     return "\n".join(lines)
 
+def format_insights(raw: str) -> str:
+    """
+    - Finds the first line starting with '#' and uses it as the markdown H2 title.
+    - Converts the remaining lines into bullet points.
+    - Falls back to "🔍 Insights" if no heading is present.
+    """
+    lines = [l.rstrip() for l in raw.splitlines() if l.strip()]
+    title = "🔍 Insights"
+    bullets = []
+
+    for line in lines:
+        if line.startswith("#"):
+            # strip leading '#' and whitespace
+            title = line.lstrip("#").strip()
+        else:
+            # clean up numbering and extra spaces
+            txt = line.lstrip("0123456789. ").strip()
+            bullets.append(f"- {txt}")
+
+    # build the final markdown
+    md = [f"## {title}", ""]
+    md += bullets
+    return "\n".join(md)
+
+
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
 # OpenAI-powered marketing tips
@@ -189,27 +214,31 @@ with tabs[0]:
         
     # 5) AI tips in an expander
     with st.expander("🔍 Automated Marketing Tips", expanded=True):
-        if st.button("Generate General Tips", key="gen_tips_btn"):
-            prompt = (
-                f"Our KPIs are:\n"
-                f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
-                f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
-                f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
-                "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
-            )
-            headers = {
-                "Authorization": f"Bearer {CLAUDE_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            body = {"messages": [{"role": "user", "content": prompt}]}
+    if st.button("Generate General Tips", key="gen_tips_btn"):
+        prompt = (
+            f"Our KPIs are:\n"
+            f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
+            f"- Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}\n"
+            f"- Unique Customers: {df_kpis.unique_customers[0]}\n\n"
+            "Please provide 3 concise, prioritized marketing tips to increase revenue and engagement."
+        )
+        headers = {
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json"
+        }
+        body = {"messages": [{"role": "user", "content": prompt}]}
 
-            with st.spinner("Generating tips…"):
-                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-                if r.status_code != 200:
-                    st.error(f"Invocation failed with status {r.status_code}")
-                    st.code(r.text, language="json")
-                    st.stop()
-                text = r.json()["choices"][0]["message"]["content"]
+        with st.spinner("Generating tips…"):
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            if r.status_code != 200:
+                st.error(f"Invocation failed with status {r.status_code}")
+                st.code(r.text, language="json")
+                st.stop()
+            raw = r.json()["choices"][0]["message"]["content"]
+
+        # Format and render
+        pretty = format_insights(raw)
+        st.markdown(pretty)
 
             tips = [t.strip() for t in text.splitlines() if t.strip()]
             for tip in tips:
