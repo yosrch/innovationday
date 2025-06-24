@@ -512,15 +512,21 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
+    # build a 2-col layout: narrow info panel on left, chat on right
     info_col, chat_col = st.columns([1, 3], gap="small")
 
-    # — Left: info panel —
+    # — Left: inline-styled info panel —
     with info_col:
         st.markdown(
             """
-            <div class="info-panel">
-              <h4 style="margin:0;">💬 AI Assistant</h4>
-              <p style="margin:0.5rem 0 0;">
+            <div style="
+                background-color: #fffbec;
+                padding: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                ">
+              <h4 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h4>
+              <p style="margin:0; font-size:0.95rem;">
                 Analyze your KPIs, segments & products and get actionable insights for decision-making.
               </p>
             </div>
@@ -528,40 +534,43 @@ with tabs[3]:
             unsafe_allow_html=True,
         )
 
-    # — Right: chat area —
+    # — Right: the actual chat UI —
     with chat_col:
         st.subheader("💬 Ask the Data")
 
-        # initialize history with a greeting if empty
+        # initialize chat history with a greeting if needed
         if "messages" not in st.session_state:
             st.session_state.messages = [{
                 "role": "assistant",
                 "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
             }]
 
-        # render all prior messages
+        # render the full chat history
         for msg in st.session_state.messages:
             st.chat_message(msg["role"]).write(msg["content"])
 
-        # prompt for new user question
+        # input for the user’s next question
         user_q = st.chat_input("Type your question here…")
         if user_q:
-            # display user question
+            # 1️⃣ show user message
             st.session_state.messages.append({"role":"user","content":user_q})
             st.chat_message("user").write(user_q)
 
-            # build context + prompt
+            # 2️⃣ build prompt with cached context
             data_ctx = get_data_context()
-            prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
+            full_prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
 
-            # call Claude
+            # 3️⃣ call Claude
             payload = {
                 "messages": [
-                    {"role": "system", "content":
-                        "You are a concise data-analysis assistant. "
-                        "Answer in bullet points without repeating the full context."
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a concise data-analysis assistant. "
+                            "Answer in bullet points without repeating the full context."
+                        )
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": full_prompt}
                 ]
             }
             headers = {
@@ -577,13 +586,14 @@ with tabs[3]:
                 st.stop()
 
             assistant_reply = r.json()["choices"][0]["message"]["content"]
-            # strip any <<…>> guardrail tokens
+
+            # 4️⃣ clean out any guardrail tokens like <<…>>
             cleaned = [
                 ln for ln in assistant_reply.splitlines()
-                if not (ln.startswith("<<") and ln.endswith(">>"))
+                if not (ln.strip().startswith("<<") and ln.strip().endswith(">>"))
             ]
             answer = "\n".join(cleaned).strip()
 
-            # display assistant answer
+            # 5️⃣ display assistant answer
             st.session_state.messages.append({"role":"assistant","content":answer})
             st.chat_message("assistant").write(answer)
