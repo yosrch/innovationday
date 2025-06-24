@@ -576,7 +576,7 @@ def get_data_context() -> str:
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
     # Create two columns: left panel (width=1) & main chat area (width=4)
-    panel_col, chat_col = st.columns([2, 3], gap="small")
+    panel_col, chat_col = st.columns([2, 4], gap="small")
 
     # ---- LEFT PANEL in panel_col ----
     with panel_col:
