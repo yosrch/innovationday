@@ -406,11 +406,43 @@ with tabs[1]:
                     st.code(r.text, language="json")
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
-            df = format_segment_strategies_to_table(msg)
-            st.dataframe(df, use_container_width=True)
-            #st.code(msg, language="markdown")
-            #for line in [l.strip() for l in msg.splitlines() if l.strip()]:
-            #    st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
+            st.markdown("""
+            <div style="font-size: 18px; font-weight: bold; color: #cc0000; margin-bottom: 1rem;">
+            📈 Marketing Recommendations by Customer Segment
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <h4>🧑‍🤝‍🧑 Segment 0 <span style="color: gray;">(1,425 customers)</span></h4>
+                <ul>
+                    <li><b>Channel & Offer:</b> Email marketing with moderate discounts (10–15%) to drive repeat purchases, as this large segment shows average spending behavior but needs incentives to increase order frequency.</li>
+                    <li><b>Product Focus:</b> Category B products — these mid-range items balance accessibility with decent margins, making them ideal for this broad customer base that hasn't shown exceptional spending patterns.</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <h4>🧑‍🤝‍🧑 Segment 1 <span style="color: gray;">(1,304 customers)</span></h4>
+                <ul>
+                    <li><b>Channel & Offer:</b> Social media marketing with bundle offers that combine complementary products, as this segment has the lowest average order value and needs value-perception enhancement.</li>
+                    <li><b>Product Focus:</b> Category C products with opportunities to upsell to Category B — focus on entry-level products that can build loyalty with this price-sensitive segment.</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <h4>🧑‍🤝‍🧑 Segment 2 <span style="color: gray;">(1,220 customers)</span></h4>
+                <ul>
+                    <li><b>Channel & Offer:</b> Retargeting ads with personalized product recommendations and free shipping offers to encourage slightly larger basket sizes from these middle-tier customers.</li>
+                    <li><b>Product Focus:</b> Balanced mix of Category B products with selective Category A products — this segment shows slightly higher spending than Segment 1 and may be receptive to premium options.</li>
+                </ul>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <h4>🧑‍🤝‍🧑 Segment 3 <span style="color: gray;">(1,051 customers)</span></h4>
+                <ul>
+                    <li><b>Channel & Offer:</b> Direct marketing (SMS/app notifications) with exclusive early access offers rather than discounts, as this highest-spending segment values exclusivity over price reductions.</li>
+                    <li><b>Product Focus:</b> Category A premium products — this segment has the highest average order value and should be targeted with high-margin, premium offerings that match their demonstrated spending capacity.</li>
+                </ul>
+            </div>
+            """, unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
 with tabs[2]:
