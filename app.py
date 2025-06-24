@@ -214,7 +214,7 @@ with tabs[0]:
         
     # 5) AI tips in an expander
     with st.expander("🔍 Automated Marketing Tips", expanded=True):
-    if st.button("Generate General Tips", key="gen_tips_btn"):
+        if st.button("Generate General Tips", key="gen_tips_btn"):
         prompt = (
             f"Our KPIs are:\n"
             f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}\n"
@@ -239,10 +239,6 @@ with tabs[0]:
         # Format and render
         pretty = format_insights(raw)
         st.markdown(pretty)
-
-            tips = [t.strip() for t in text.splitlines() if t.strip()]
-            for tip in tips:
-                st.markdown(f"<div class='llm-box'>• {tip}</div>", unsafe_allow_html=True)
 
 
 # --- Tab 2: Segmentation ---
