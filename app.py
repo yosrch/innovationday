@@ -520,9 +520,13 @@ with tabs[3]:
         st.markdown(
             """
             <div style="
-                background-color: #ccaea3;
+                background-color: #f0dcd5;
                 padding: 1rem;
                 border-radius: 0.5rem;
+                min-height: 200px;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
             ">
               <h4 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h4>
               <p style="margin:0; font-size:0.95rem;">
