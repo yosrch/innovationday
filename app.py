@@ -519,84 +519,74 @@ with tabs[3]:
           padding:1rem;
           height:100vh;         /* full viewport height */
           box-sizing:border-box;
-          background-color:#E4C6B6;  /* light CBS-brand tone */
+          background-color:#E4C6B6;
         ">
           <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
                style="width:80%; display:block; margin:0 auto 1rem auto;" />
           <h3 style="margin-bottom:0.25rem;">💬 AI Assistant</h3>
           <p style="font-size:0.95rem; line-height:1.3;">
             Analyze your KPIs, segments & products<br>
-            and get actionable insights<br>
-            for decision-making.
+            and get actionable insights for decision-making.
           </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # — Main panel header —
     st.subheader("💬 Ask the Data")
 
-    # — Scrollable container for the chat history —
+    # — Inject CSS for a scrollable history and a sticky input box —
     st.markdown(
         """
         <style>
+          /* The chat history: scrollable but fixed height */
           .chat-history {
-            height: 60vh;        /* adjust as needed */
+            height: calc(80vh - 100px);  /* adjust so header + footer fit */
             overflow-y: auto;
             padding: 1rem;
             border: 1px solid #eee;
             border-radius: 0.5rem;
             background-color: #fafafa;
           }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-    chat_area = st.container()
-    chat_area.markdown('<div class="chat-history">', unsafe_allow_html=True)
 
-    # — Initialize history if needed —
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
-        ]
-
-    # — Render chat history —
-    for msg in st.session_state.messages:
-        chat_area.chat_message(msg["role"]).write(msg["content"])
-
-    chat_area.markdown("</div>", unsafe_allow_html=True)
-
-    # — Pinned input at the bottom —
-    st.markdown(
-        """
-        <style>
-          .input-box {
-            margin-top:1rem;
-            padding:1rem;
-            border:1px solid #ddd;
-            border-radius:0.5rem;
-            background-color:#f0f4ff;
+          /* The input wrapper: stick to bottom of its column */
+          .chat-input-wrapper {
+            position: sticky;
+            bottom: 0;
+            background: white;
+            padding: 1rem;
+            border-top: 1px solid #ddd;
           }
         </style>
         """,
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="input-box">', unsafe_allow_html=True)
 
+    # — Render the history in a scrollable box —
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
+        ]
+
+    st.markdown('<div class="chat-history">', unsafe_allow_html=True)
+    for msg in st.session_state.messages:
+        st.chat_message(msg["role"]).write(msg["content"])
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # — The sticky input area —
+    st.markdown('<div class="chat-input-wrapper">', unsafe_allow_html=True)
     user_question = st.chat_input(
         "Ask me about KPIs, segments or products…",
         key="ask_data_input"
     )
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     if user_question:
-        # — Echo user —
+        # echo user
         st.session_state.messages.append({"role": "user", "content": user_question})
-        chat_area.chat_message("user").write(user_question)
+        st.chat_message("user").write(user_question)
 
-        # — Build & call Claude prompt (exactly your existing logic) —
+        # build Claude prompt
         data_context = get_data_context()
         prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
         body = {
@@ -621,10 +611,10 @@ with tabs[3]:
                 st.stop()
             reply = r.json()["choices"][0]["message"]["content"]
 
-        # — Clean & echo assistant —
+        # clean & echo assistant
         cleaned = "\n".join(
             line for line in reply.splitlines()
             if not (line.startswith("<<") and line.endswith(">>"))
         )
         st.session_state.messages.append({"role": "assistant", "content": cleaned})
-        chat_area.chat_message("assistant").write(cleaned)
+        st.chat_message("assistant").write(cleaned)
