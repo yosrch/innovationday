@@ -440,11 +440,9 @@ with tabs[2]:
     )
 
     # 3) Let user pick Top, Bottom or Custom
-    mode = st.radio("Show products:", ["Top 5", "Bottom 5", "Custom"], horizontal=True)
+    mode = st.radio("Show products:", ["Top 5", "Custom"], horizontal=True)
     if mode == "Top 5":
         sel = prod.head(5)
-    elif mode == "Bottom 5":
-        sel = prod.tail(5)
     else:
         picked = st.multiselect(
             "Pick products to include:",
