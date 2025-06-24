@@ -512,99 +512,80 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    # two-column layout: sidebar (logo + blurb) + chat area
-    sidebar, chat = st.columns([1, 3], gap="large")
+    # Use Streamlit's built-in sidebar so it stretches top→bottom
+    st.sidebar.markdown(
+        """
+        <div style="
+          background-color:#ccaea3;
+          border-radius:1rem;
+          padding:1rem;
+          height:100vh;  /* sidebar full viewport height */
+          box-sizing:border-box;
+        ">
+          <img src="https://www.cbs-consulting.com/wp-content/uploads/cbs-consulting.jpg" 
+               style="width:80%;margin-bottom:1rem;" />
+          <h3 style="margin:0 0 .5rem 0;">💬 AI Assistant</h3>
+          <p style="font-size:0.9rem; margin:0;">
+            Analyze your KPIs, segments & products and<br>
+            get actionable insights for decision-making.
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # ─── Sidebar ───
-    with sidebar:
-        st.markdown(
-            f"""
-            <div style="
-              background-color: #ccaea3;    /* your brand color */
-              border-radius: 1rem;
-              padding: 1.5rem;
-              text-align: center;
-            ">
-              <!-- Replace src with your actual logo URL or local file path -->
-              <img src="https://www.cbs-consulting.com/wp-content/uploads/cbs-consulting.jpg"
-                   style="width:80%; margin-bottom:1rem;" />
-              <h3 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h3>
-              <p style="font-size:0.9rem; margin:0;">
-                Analyze your KPIs, segments & products<br>and get actionable insights for decision-making.
-              </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # Now the main chat area
+    st.subheader("💬 Ask the Data")
 
-    # ─── Chat Area ───
-    with chat:
-        st.subheader("💬 Ask the Data")
+    # Initialize history if needed
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
+        ]
 
-        # initialize with one greeting if empty
-        if "messages" not in st.session_state or not st.session_state.messages:
-            st.session_state.messages = [
-                {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
+    # Draw chat history in a scrollable container
+    chat_container = st.container()
+    for msg in st.session_state.messages:
+        chat_container.chat_message(msg["role"]).write(msg["content"])
+
+    # Place the input prompt *after* the history, so it always appears at the bottom
+    user_question = st.chat_input("Type your question here…", 
+                                  placeholder="Ask me about KPIs, segments or products…")
+    if user_question:
+        # record & render user message
+        st.session_state.messages.append({"role": "user", "content": user_question})
+        chat_container.chat_message("user").write(user_question)
+
+        # build context + call Claude
+        data_context = get_data_context()
+        prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
+        body = {
+            "messages": [
+                {"role": "system", "content": (
+                    "You are an expert data analyst assistant. Answer concisely in bullet points "
+                    "without repeating full context."
+                )},
+                {"role": "assistant", "content": "Understood, here’s my answer:"},
+                {"role": "user", "content": prompt},
             ]
+        }
+        headers = {
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json",
+        }
 
-        # render history
-        for msg in st.session_state.messages:
-            chat.chat_message(msg["role"]).write(msg["content"])
+        with st.spinner("Thinking…"):
+            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+            if r.status_code != 200:
+                st.error(f"Invocation failed: {r.status_code}")
+                st.code(r.text, language="json")
+                st.stop()
+            reply = r.json()["choices"][0]["message"]["content"]
 
-        # fixed-at-bottom input via a form
-        form = chat.form(key="chat_form", clear_on_submit=True)
-        user_q = form.text_input(
-            "Type your question here…",
-            placeholder="Ask me about KPIs, segments or products…",
-            key="chat_input",
+        # strip <<…>> and record assistant reply
+        cleaned = "\n".join(
+            line for line in reply.splitlines()
+            if not (line.startswith("<<") and line.endswith(">>"))
         )
-        submit = form.form_submit_button("➤")
-
-        if submit and user_q:
-            # record & display user
-            st.session_state.messages.append({"role": "user", "content": user_q})
-            chat.chat_message("user").write(user_q)
-
-            # build prompt with context
-            data_ctx = get_data_context()
-            prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
-
-            body = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are an expert data analyst assistant. "
-                            "Answer concisely in bullet points without repeating full context."
-                        ),
-                    },
-                    {
-                        "role": "assistant",
-                        "content": "Understood! Here's my answer:"
-                    },
-                    {"role": "user", "content": prompt},
-                ]
-            }
-            headers = {
-                "Authorization": f"Bearer {CLAUDE_TOKEN}",
-                "Content-Type": "application/json",
-            }
-
-            # call Claude
-            with st.spinner("Thinking…"):
-                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-                if r.status_code != 200:
-                    st.error(f"Invocation failed: {r.status_code}")
-                    st.code(r.text, language="json")
-                    st.stop()
-                assistant_reply = r.json()["choices"][0]["message"]["content"]
-
-            # strip any <<…>> markers
-            cleaned = "\n".join(
-                line for line in assistant_reply.splitlines()
-                if not (line.startswith("<<") and line.endswith(">>"))
-            )
-
-            # record & display assistant
-            st.session_state.messages.append({"role": "assistant", "content": cleaned})
-            chat.chat_message("assistant").write(cleaned)
+        st.session_state.messages.append({"role": "assistant", "content": cleaned})
+        chat_container.chat_message("assistant").write(cleaned)
