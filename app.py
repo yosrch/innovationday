@@ -512,91 +512,115 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    # build a 2-col layout: narrow info panel on left, chat on right
-    info_col, chat_col = st.columns([1, 3], gap="small")
+    # create two columns: fixed‐width sidebar + flexible chat area
+    sidebar_col, chat_col = st.columns([1, 3], gap="large")
 
-    # — Left: inline-styled info panel —
-    with info_col:
+    # — Sidebar with logo + description —
+    with sidebar_col:
         st.markdown(
             """
             <div style="
-                background-color: #f0dcd5;
-                padding: 1rem;
+                background-color: #ccaea3;
                 border-radius: 0.5rem;
-                height: 100vh;
+                padding: 1rem;
                 display: flex;
                 flex-direction: column;
-                justify-content: center;
+                align-items: center;
             ">
+              <!-- your CBS logo, adjust the src to your file or URL -->
+              <img src="https://www.cbs-consulting.com/wp-content/uploads/cbs-consulting.jpg" 
+                   style="width:80%; margin-bottom:1rem;" />
               <h4 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h4>
-              <p style="margin:0; font-size:0.95rem; line-height:1.4;">
+              <p style="margin:0; font-size:0.9rem; text-align:center;">
                 Analyze your KPIs, segments & products and get actionable insights for decision-making.
               </p>
             </div>
             """,
-            unsafe_allow_html=True
-        )  
+            unsafe_allow_html=True,
+        )
 
-    # — Right: the actual chat UI —
+    # — Main chat area —
     with chat_col:
         st.subheader("💬 Ask the Data")
 
-        # initialize chat history with a greeting if needed
+        # initialize conversation history
         if "messages" not in st.session_state:
-            st.session_state.messages = [{
-                "role": "assistant",
-                "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
-            }]
-
-        # render the full chat history
-        for msg in st.session_state.messages:
-            st.chat_message(msg["role"]).write(msg["content"])
-
-        # input for the user’s next question
-        user_q = st.chat_input("Type your question here…")
-        if user_q:
-            # 1️⃣ show user message
-            st.session_state.messages.append({"role":"user","content":user_q})
-            st.chat_message("user").write(user_q)
-
-            # 2️⃣ build prompt with cached context
-            data_ctx = get_data_context()
-            full_prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
-
-            # 3️⃣ call Claude
-            payload = {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a concise data-analysis assistant. "
-                            "Answer in bullet points without repeating the full context."
-                        )
-                    },
-                    {"role": "user", "content": full_prompt}
-                ]
-            }
-            headers = {
-                "Authorization": f"Bearer {CLAUDE_TOKEN}",
-                "Content-Type": "application/json"
-            }
-            with st.spinner("Thinking…"):
-                r = requests.post(CLAUDE_URL, json=payload, headers=headers, timeout=120)
-
-            if r.status_code != 200:
-                st.error(f"Invocation failed: {r.status_code}")
-                st.code(r.text, language="json")
-                st.stop()
-
-            assistant_reply = r.json()["choices"][0]["message"]["content"]
-
-            # 4️⃣ clean out any guardrail tokens like <<…>>
-            cleaned = [
-                ln for ln in assistant_reply.splitlines()
-                if not (ln.strip().startswith("<<") and ln.strip().endswith(">>"))
+            st.session_state.messages = [
+                {
+                    "role": "assistant",
+                    "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
+                }
             ]
-            answer = "\n".join(cleaned).strip()
 
-            # 5️⃣ display assistant answer
-            st.session_state.messages.append({"role":"assistant","content":answer})
-            st.chat_message("assistant").write(answer)
+        # render all past messages
+        for msg in st.session_state.messages:
+            chat_col.chat_message(msg["role"]).write(msg["content"])
+
+        # render a fixed-position input at the bottom
+        # by placing it inside an st.empty() container and then using CSS
+        input_placeholder = chat_col.empty()
+        input_css = """
+          <style>
+            .fixed-input > div[data-testid="stForm"] {
+              position: fixed;
+              bottom: 1rem;
+              width: 70%;
+              max-width: 800px;
+            }
+          </style>
+        """
+        st.markdown(input_css, unsafe_allow_html=True)
+
+        with input_placeholder.form(key="chat_form", clear_on_submit=True):
+            user_q = st.text_input(
+                "Type your question here…", 
+                key="chat_input", 
+                placeholder="Ask me about KPIs, segments or products…"
+            )
+            st.form_submit_button("➤")
+
+            if user_q:
+                # add user message
+                st.session_state.messages.append({"role": "user", "content": user_q})
+                chat_col.chat_message("user").write(user_q)
+
+                # build prompt
+                data_ctx = get_data_context()
+                prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
+
+                body = {
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are an expert data analyst assistant. "
+                                "Answer concisely in bullet points without repeating full context."
+                            )
+                        },
+                        {"role": "assistant", "content": "Understood! Here's my answer:"},
+                        {"role": "user", "content": prompt},
+                    ]
+                }
+                headers = {
+                    "Authorization": f"Bearer {CLAUDE_TOKEN}",
+                    "Content-Type": "application/json",
+                }
+
+                # call Claude
+                with st.spinner("Thinking…"):
+                    r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+                    if r.status_code != 200:
+                        st.error(f"Invocation failed: {r.status_code}")
+                        st.code(r.text, language="json")
+                        st.stop()
+                    reply = r.json()["choices"][0]["message"]["content"]
+
+                # remove any <<…>> tokens
+                cleaned = "\n".join(
+                    line for line in reply.splitlines()
+                    if not (line.strip().startswith("<<") and line.strip().endswith(">>"))
+                )
+
+                # record & render assistant message
+                st.session_state.messages.append({"role": "assistant", "content": cleaned})
+                chat_col.chat_message("assistant").write(cleaned)
