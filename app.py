@@ -522,7 +522,7 @@ with tabs[3]:
           background-color:#E4C6B6;
         ">
           <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
-               style="width:80%; display:block; margin:0 auto 1rem auto;" />
+               style="width:100%; display:block; margin:0 auto 1rem auto;" />
           <h3 style="margin-bottom:0.25rem;">💬 AI Assistant</h3>
           <p style="font-size:0.95rem; line-height:1.3;">
             Analyze your KPIs, segments & products<br>
@@ -541,7 +541,7 @@ with tabs[3]:
         <style>
           /* The chat history: scrollable but fixed height */
           .chat-history {
-            height: calc(80vh - 100px);  /* adjust so header + footer fit */
+            height: calc(80vh - 10px);  /* adjust so header + footer fit */
             overflow-y: auto;
             padding: 1rem;
             border: 1px solid #eee;
