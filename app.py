@@ -576,20 +576,20 @@ def get_data_context() -> str:
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
     # Create two columns: left panel (width=1) & main chat area (width=4)
-    panel_col, chat_col = st.columns([2, 4], gap="small")
+    panel_col, chat_col = st.columns([1, 4], gap="small")
 
     # ---- LEFT PANEL in panel_col ----
     with panel_col:
         st.markdown(
             """
             <div style="
-              background:#ccaea3;
+              background:#f0dfce;
               padding:1rem;
               height:calc(100vh - 2rem);
               box-sizing:border-box;
               border-radius:8px;
             ">
-              <h3 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h3>
+              <h2 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h2>
               <p style="color:#222; line-height:1.4; font-size:0.9rem;">
                 Analyze your KPIs, segments &amp; products<br/>
                 and get actionable insights for decision-making.
