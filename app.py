@@ -148,39 +148,27 @@ def format_insights(raw: str) -> str:
     md += bullets
     return "\n".join(md)
 
-def format_table_html(df):
-    table_html = """
-    <style>
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    th, td {
-        border: 1px solid #ddd;
-        padding: 8px;
-        text-align: left;
-    }
-    th {
-        background-color: #f2f2f2;
-    }
-    </style>
-    <table>
-      <tr>
-        <th>Segment</th>
-        <th>Type</th>
-        <th>Recommendation</th>
-      </tr>
-    """
-    for _, row in df.iterrows():
-        table_html += f"""
-          <tr>
-            <td>{row['Segment']}</td>
-            <td>{row['Type']}</td>
-            <td>{row['Recommendation']}</td>
-          </tr>
-        """
-    table_html += "</table>"
-    return table_html    
+import pandas as pd
+
+def format_segment_strategies_to_table(text):
+    # Create structured list of rows
+    rows = []
+    current_segment = ""
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("## Segment"):
+            current_segment = line.replace("## ", "").strip()
+        elif line.startswith("* **Channel"):
+            rows.append([current_segment, "Channel & Approach", line.split("**:")[1].strip()])
+        elif line.startswith("* **Offer"):
+            rows.append([current_segment, "Offer & Category", line.split("**:")[1].strip()])
+
+    df = pd.DataFrame(rows, columns=["Segment", "Type", "Recommendation"])
+    return df
+
 
 
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
@@ -415,8 +403,8 @@ with tabs[1]:
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
 
-                html = format_table_html(msg)
-                st.markdown(html, unsafe_allow_html=True)
+                df = format_segment_strategies_to_table(raw)
+                st.dataframe(df, use_container_width=True)
 
 # --- Tab 3: Product Insights ---
 # --- Tab 3: Top Products & 7-Day Forecast + ABC Classification ---
