@@ -566,7 +566,7 @@ def get_data_context() -> str:
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # — Sidebar (full-height) left panel —
+    # — Sidebar (full‐height) left panel —
     st.sidebar.markdown(
         """
         <div style="
@@ -598,62 +598,60 @@ with tabs[3]:
             }
         ]
 
-    # 1) Render the chat history in one container
+    # Render the chat history
     chat_container = st.container()
     for msg in st.session_state.messages:
         chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # 2) Add the fixed-footer CSS
+    # Inject footer‐fixed CSS
     st.markdown(
         """
         <style>
-          /* push input bar below any content */
           .footer-input {
             position: fixed;
             bottom: 0;
-            left: 20%;       /* matches Streamlit sidebar width */
-            width: 80%;      /* the rest of the main pane */
+            left: 20%;     /* sidebar is ~20% width */
+            width: 80%;    /* main pane is the rest */
             padding: 1rem;
             background: #f7f7f7;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             z-index: 1000;
           }
-          /* make main content area have bottom padding
-             so it doesn't get hidden under the fixed footer */
+          /* give main content enough bottom padding to scroll above footer */
           .main > div.block-container {
-            padding-bottom: 5rem;
+            padding-bottom: 6rem;
           }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # 3) The fixed-footer wrapper
+    # Footer container
     footer = st.empty()
     with footer.container():
         st.markdown('<div class="footer-input">', unsafe_allow_html=True)
 
-        # 4) Your text_input with a key
+        # Text input (key must match session_state index)
         prompt = st.text_input(
             "",
             key="chat_input",
             placeholder="Ask me about KPIs, segments or products…",
             label_visibility="hidden",
-            help="Type your question and hit Enter"
         )
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # 5) When the user submits…
+    # When the user types and presses Enter…
     if prompt:
-        # record & display user
+        # 1) record & render user
         st.session_state.messages.append({"role":"user","content":prompt})
         chat_container.chat_message("user").write(prompt)
 
-        # clear the input box
-        st.session_state.chat_input = ""
+        # 2) clear the input box via item notation
+        if "chat_input" in st.session_state:
+            st.session_state["chat_input"] = ""
 
-        # build context + call Claude
+        # 3) build context + call Claude
         ctx = get_data_context()
         body = {
             "messages":[
@@ -678,7 +676,6 @@ with tabs[3]:
             st.code(r.text, language="json")
         else:
             reply = r.json()["choices"][0]["message"]["content"]
-            # strip out any <<…>>
             cleaned = "\n".join(
                 line for line in reply.splitlines()
                 if not (line.startswith("<<") and line.endswith(">>"))
