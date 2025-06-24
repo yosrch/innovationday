@@ -126,7 +126,9 @@ def get_data_context() -> str:
 
 def format_insights(raw: str) -> str:
     """
-    Formats AI-generated insights with a styled title and clean bullet points.
+    - Finds the first line starting with '#' and uses it as the markdown H2 title.
+    - Converts the remaining lines into bullet points.
+    - Falls back to "🔍 Insights" if no heading is present.
     """
     lines = [l.rstrip() for l in raw.splitlines() if l.strip()]
     title = "🔍 Insights"
@@ -134,21 +136,17 @@ def format_insights(raw: str) -> str:
 
     for line in lines:
         if line.startswith("#"):
+            # strip leading '#' and whitespace
             title = line.lstrip("#").strip()
         else:
+            # clean up numbering and extra spaces
             txt = line.lstrip("0123456789. ").strip()
-            bullets.append(f"<li>{txt}</li>")
+            bullets.append(f"- {txt}")
 
-    # HTML-styled title
-    title_html = f"""
-    <div style='font-size: 24px; font-weight: bold; color: #cc0000; margin-bottom: 10px;'>
-        🔍 {title}
-    </div>
-    """
-
-    # Combine into final HTML
-    html = title_html + "<ul>" + "".join(bullets) + "</ul>"
-    return html
+    # build the final markdown
+    md = [f"## {title}", ""]
+    md += bullets
+    return "\n".join(md)
 
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
