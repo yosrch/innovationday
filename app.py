@@ -585,7 +585,7 @@ with tabs[3]:
             <div style="
               background:#f0dfce;
               padding:1rem;
-              height:calc(100vh - 2rem);
+              height:calc(80vh - 2rem);
               box-sizing:border-box;
               border-radius:8px;
             ">
