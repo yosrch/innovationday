@@ -126,9 +126,7 @@ def get_data_context() -> str:
 
 def format_insights(raw: str) -> str:
     """
-    - Finds the first line starting with '#' and uses it as the markdown H2 title.
-    - Converts the remaining lines into bullet points.
-    - Falls back to "🔍 Insights" if no heading is present.
+    Formats AI-generated insights with a styled title and clean bullet points.
     """
     lines = [l.rstrip() for l in raw.splitlines() if l.strip()]
     title = "🔍 Insights"
@@ -136,44 +134,21 @@ def format_insights(raw: str) -> str:
 
     for line in lines:
         if line.startswith("#"):
-            # strip leading '#' and whitespace
             title = line.lstrip("#").strip()
         else:
-            # clean up numbering and extra spaces
             txt = line.lstrip("0123456789. ").strip()
-            bullets.append(f"- {txt}")
+            bullets.append(f"<li>{txt}</li>")
 
-    # build the final markdown
-    md = [f"## {title}", ""]
-    md += bullets
-    return "\n".join(md)
+    # HTML-styled title
+    title_html = f"""
+    <div style='font-size: 24px; font-weight: bold; color: #cc0000; margin-bottom: 10px;'>
+        🔍 {title}
+    </div>
+    """
 
-def format_segment_strategies_to_table(text):
-    import re
-    import pandas as pd
-    rows = []
-    current_segment = ""
-
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-
-        # Match the segment title like: ## Segment 0 (1425 customers)
-        if re.match(r"^## Segment \d+", line):
-            current_segment = line.replace("##", "").strip()
-            continue
-
-        # Match lines like: * **Channel:** some text
-        match = re.match(r"\* \*\*(Channel|Offer):\*\* (.+)", line)
-        if match:
-            rec_type = match.group(1).strip()  # "Channel" or "Offer"
-            rec_text = match.group(2).strip()
-            rows.append([current_segment, rec_type, rec_text])
-
-    return pd.DataFrame(rows, columns=["Segment", "Type", "Recommendation"])
-
-
+    # Combine into final HTML
+    html = title_html + "<ul>" + "".join(bullets) + "</ul>"
+    return html
 
 tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
 
