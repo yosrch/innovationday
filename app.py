@@ -589,8 +589,6 @@ with tabs[3]:
               box-sizing:border-box;
               border-radius:8px;
             ">
-              <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
-                   style="width:100%;margin-bottom:1rem;border-radius:8px;"/>
               <h3 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h3>
               <p style="color:#222; line-height:1.4; font-size:0.9rem;">
                 Analyze your KPIs, segments &amp; products<br/>
