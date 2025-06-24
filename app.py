@@ -522,10 +522,10 @@ with tabs[3]:
           height:100vh;  /* sidebar full viewport height */
           box-sizing:border-box;
         ">
-          <img src="https://www.cbs-consulting.com/wp-content/uploads/cbs-consulting.jpg" 
+          <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png" 
                style="width:80%;margin-bottom:1rem;" />
           <h3 style="margin:0 0 .5rem 0;">💬 AI Assistant</h3>
-          <p style="font-size:0.9rem; margin:0;">
+          <p style="font-size:1rem; margin:1;">
             Analyze your KPIs, segments & products and<br>
             get actionable insights for decision-making.
           </p>
