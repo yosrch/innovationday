@@ -566,7 +566,7 @@ def get_data_context() -> str:
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # — Sidebar (full‐height) left panel —
+    # — Sidebar (full-height) left panel —
     st.sidebar.markdown(
         """
         <div style="
@@ -589,85 +589,87 @@ with tabs[3]:
 
     st.markdown("## 💬 Ask the Data")
 
-    # Initialize session history
+    # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {
-                "role":"assistant",
-                "content":"Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
+                "role": "assistant",
+                "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
             }
         ]
 
-    # Render the chat history
+    # 1) Render the chat history
     chat_container = st.container()
     for msg in st.session_state.messages:
         chat_container.chat_message(msg["role"]).write(msg["content"])
 
-    # Inject footer‐fixed CSS
+    # 2) Inject CSS for footer‐fixed input and content bottom padding
     st.markdown(
         """
         <style>
           .footer-input {
             position: fixed;
             bottom: 0;
-            left: 20%;     /* sidebar is ~20% width */
-            width: 80%;    /* main pane is the rest */
+            left: 20%;        /* adjust for sidebar width */
+            width: 80%;       /* the rest of the main pane */
             padding: 1rem;
             background: #f7f7f7;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             z-index: 1000;
           }
-          /* give main content enough bottom padding to scroll above footer */
           .main > div.block-container {
-            padding-bottom: 6rem;
+            padding-bottom: 6rem;  /* ensure history scrolls above footer */
+          }
+          .footer-input form {
+            display: flex;
+            gap: 0.5rem;
           }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # Footer container
+    # 3) Create a form inside the fixed footer that clears on submit
     footer = st.empty()
     with footer.container():
         st.markdown('<div class="footer-input">', unsafe_allow_html=True)
-
-        # Text input (key must match session_state index)
-        prompt = st.text_input(
-            "",
-            key="chat_input",
-            placeholder="Ask me about KPIs, segments or products…",
-            label_visibility="hidden",
-        )
-
+        with st.form(key="chat_form", clear_on_submit=True):
+            user_question = st.text_input(
+                "",
+                placeholder="Ask me about KPIs, segments or products…",
+                label_visibility="hidden",
+            )
+            submit = st.form_submit_button("➤")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # When the user types and presses Enter…
-    if prompt:
-        # 1) record & render user
-        st.session_state.messages.append({"role":"user","content":prompt})
-        chat_container.chat_message("user").write(prompt)
+    # 4) Handle the form submission
+    if submit and user_question:
+        # a) Record & display the user’s message
+        st.session_state.messages.append({"role": "user", "content": user_question})
+        chat_container.chat_message("user").write(user_question)
 
-        # 2) clear the input box via item notation
-        if "chat_input" in st.session_state:
-            st.session_state["chat_input"] = ""
-
-        # 3) build context + call Claude
-        ctx = get_data_context()
+        # b) Build your prompt and call Claude exactly as before
+        data_context = get_data_context()
         body = {
-            "messages":[
-                {"role":"system","content":
-                    "You are an expert data analyst assistant. "
-                    "Answer concisely in bullet points without repeating full context."
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert data analyst assistant. "
+                        "Answer concisely in bullet points without repeating full context."
+                    ),
                 },
-                {"role":"assistant","content":"Understood, here’s my answer:"},
-                {"role":"user","content":f"Context:\n{ctx}\n\nQuestion: {prompt}"}
+                {"role": "assistant", "content": "Understood, here’s my answer:"},
+                {
+                    "role": "user",
+                    "content": f"Context:\n{data_context}\n\nQuestion: {user_question}",
+                },
             ]
         }
         headers = {
-            "Authorization":f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type":"application/json"
+            "Authorization": f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type": "application/json",
         }
-
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
 
@@ -676,11 +678,12 @@ with tabs[3]:
             st.code(r.text, language="json")
         else:
             reply = r.json()["choices"][0]["message"]["content"]
+            # Remove any <<…>> guardrails
             cleaned = "\n".join(
-                line for line in reply.splitlines()
+                line
+                for line in reply.splitlines()
                 if not (line.startswith("<<") and line.endswith(">>"))
             )
-            st.session_state.messages.append(
-                {"role":"assistant","content":cleaned}
-            )
+            # c) Record & display the assistant’s reply
+            st.session_state.messages.append({"role": "assistant", "content": cleaned})
             chat_container.chat_message("assistant").write(cleaned)
