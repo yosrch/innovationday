@@ -549,8 +549,7 @@ with tabs[3]:
         chat_container.chat_message(msg["role"]).write(msg["content"])
 
     # Place the input prompt *after* the history, so it always appears at the bottom
-    user_question = st.chat_input("Type your question here…", 
-                                  placeholder="Ask me about KPIs, segments or products…")
+    user_question = st.chat_input("Ask me about KPIs, segments or products…")
     if user_question:
         # record & render user message
         st.session_state.messages.append({"role": "user", "content": user_question})
