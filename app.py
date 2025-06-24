@@ -504,91 +504,74 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    # Layout: two columns, narrow sidebar + wide chat area
+    # two-column layout: tinted sidebar + chat area
     info_col, chat_col = st.columns([1, 3], gap="small")
-
-    # — Sidebar / Info panel —
     with info_col:
-        st.markdown("### 💬 Ask the Data")
-        st.write(
+        st.markdown(
             """
-            **How it works:**  
-            • Ask questions about your KPIs, segments or products.  
-            • I use the latest data plus an LLM to give concise bullet-point answers.  
-            • Your entire session is kept here for reference.
-            """
-        )
-        st.markdown("---")
-        st.write(
-            """
-            **⚙️ Tips:**  
-            • Be as specific as possible: “Which segment has highest AOV?”  
-            • For product queries, mention segment or ABC Category if relevant.  
-            • Want deeper analysis? Ask “drill into…”.
-            """
+            <div style="background:#fffbec;padding:1rem;border-radius:0.5rem">
+              <h4>💬 AI Assistant</h4>
+              <p>Analyze your KPIs, segments & products and get actionable insights for decision-making.</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    # — Chat panel —
     with chat_col:
-        # Initialize the session‐state chat history if needed
+        # init history + seed greeting
         if "messages" not in st.session_state:
-            st.session_state.messages = []
-            # Seed with a friendly assistant greeting
-            st.session_state.messages.append({
+            st.session_state.messages = [{
                 "role": "assistant",
                 "content": (
                     "Hi there! 👋\n\n"
-                    "I can help you explore KPIs, customer segments, and product insights.\n"
-                    "What would you like to know first?"
+                    "I can help you explore your data. What would you like to ask?"
                 )
-            })
-
-        # Render existing history
+            }]
+        # render existing
         for msg in st.session_state.messages:
             st.chat_message(msg["role"]).write(msg["content"])
 
-        # Chat input
-        user_question = st.chat_input("Type your question here…")
-        if user_question:
-            # 1) Record & display user message
-            st.session_state.messages.append({"role": "user", "content": user_question})
-            st.chat_message("user").write(user_question)
+        # chat input
+        user_q = st.chat_input("Type your question here…")
+        if user_q:
+            # show user
+            st.session_state.messages.append({"role":"user","content":user_q})
+            st.chat_message("user").write(user_q)
 
-            # 2) Build context + prompt
-            data_context = get_data_context()
-            full_prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
+            # build prompt
+            ctx = get_data_context()
+            prompt = f"Context:\n{ctx}\n\nQuestion: {user_q}"
 
-            # 3) Prepare Claude payload
             payload = {
                 "messages": [
-                    {"role": "system", "content": (
-                        "You are a concise data analyst assistant. "
-                        "Answer in bullet points only, and do not re-dump the full context."
+                    {"role":"system","content":(
+                        "You are a concise data-analysis assistant. "
+                        "Answer in bullet points without repeating the full context."
                     )},
-                    {"role": "user", "content": full_prompt}
+                    {"role":"user","content":prompt}
                 ]
             }
             headers = {
                 "Authorization": f"Bearer {CLAUDE_TOKEN}",
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
             }
 
-            # 4) Send to Claude
+            # call Claude
             with st.spinner("Thinking…"):
                 r = requests.post(CLAUDE_URL, json=payload, headers=headers, timeout=120)
                 if r.status_code != 200:
                     st.error(f"Invocation failed: {r.status_code}")
                     st.code(r.text, language="json")
                     st.stop()
-                assistant_reply = r.json()["choices"][0]["message"]["content"]
+                reply = r.json()["choices"][0]["message"]["content"]
 
-            # 5) Clean out any guardrail tokens
-            cleaned = [
-                line for line in assistant_reply.splitlines()
-                if not (line.strip().startswith("<<") and line.strip().endswith(">>"))
+            # strip guardrails
+            lines = [
+                ln for ln in reply.splitlines()
+                if not (ln.strip().startswith("<<") and ln.strip().endswith(">>"))
             ]
-            assistant_reply = "\n".join(cleaned).strip()
+            assistant_ans = "\n".join(lines).strip()
 
-            # 6) Record & display assistant message
-            st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
-            st.chat_message("assistant").write(assistant_reply)
+            # show assistant
+            st.session_state.messages.append({"role":"assistant","content":assistant_ans})
+            st.chat_message("assistant").write(assistant_ans)
