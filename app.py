@@ -566,124 +566,116 @@ def get_data_context() -> str:
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # — Sidebar (full-height) left panel —
-    st.sidebar.markdown(
-        """
-        <div style="
-          background:#ccaea3;
-          padding:1rem;
-          height:100vh;
-          box-sizing:border-box;
-        ">
-          <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
-               style="width:90%;margin-bottom:1rem;border-radius:8px;"/>
-          <h3 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h3>
-          <p style="color:#222; line-height:1.4;">
-            Analyze your KPIs, segments & products<br/>
-            and get actionable insights for decision-making.
-          </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Create two columns: left panel (width=1) & main chat area (width=4)
+    panel_col, chat_col = st.columns([1, 4], gap="small")
 
-    st.markdown("## 💬 Ask the Data")
+    # ---- LEFT PANEL in panel_col ----
+    with panel_col:
+        st.markdown(
+            """
+            <div style="
+              background:#ccaea3;
+              padding:1rem;
+              height:calc(100vh - 2rem);
+              box-sizing:border-box;
+              border-radius:8px;
+            ">
+              <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
+                   style="width:100%;margin-bottom:1rem;border-radius:8px;"/>
+              <h3 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h3>
+              <p style="color:#222; line-height:1.4; font-size:0.9rem;">
+                Analyze your KPIs, segments &amp; products<br/>
+                and get actionable insights for decision-making.
+              </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # Initialize chat history
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
-            }
-        ]
+    # ---- CHAT AREA in chat_col ----
+    with chat_col:
+        st.markdown("## 💬 Ask the Data")
 
-    # 1) Render the chat history
-    chat_container = st.container()
-    for msg in st.session_state.messages:
-        chat_container.chat_message(msg["role"]).write(msg["content"])
-
-    # 2) Inject CSS for footer‐fixed input and content bottom padding
-    st.markdown(
-        """
-        <style>
-          .footer-input {
-            position: fixed;
-            bottom: 0;
-            left: 20%;        /* adjust for sidebar width */
-            width: 80%;       /* the rest of the main pane */
-            padding: 1rem;
-            background: #f7f7f7;
-            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-            z-index: 1000;
-          }
-          .main > div.block-container {
-            padding-bottom: 6rem;  /* ensure history scrolls above footer */
-          }
-          .footer-input form {
-            display: flex;
-            gap: 0.5rem;
-          }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # 3) Create a form inside the fixed footer that clears on submit
-    footer = st.empty()
-    with footer.container():
-        st.markdown('<div class="footer-input">', unsafe_allow_html=True)
-        with st.form(key="chat_form", clear_on_submit=True):
-            user_question = st.text_input(
-                "",
-                placeholder="Ask me about KPIs, segments or products…",
-                label_visibility="hidden",
-            )
-            submit = st.form_submit_button("➤")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # 4) Handle the form submission
-    if submit and user_question:
-        # a) Record & display the user’s message
-        st.session_state.messages.append({"role": "user", "content": user_question})
-        chat_container.chat_message("user").write(user_question)
-
-        # b) Build your prompt and call Claude exactly as before
-        data_context = get_data_context()
-        body = {
-            "messages": [
+        # Initialize history
+        if "messages" not in st.session_state:
+            st.session_state.messages = [
                 {
-                    "role": "system",
-                    "content": (
+                    "role": "assistant",
+                    "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
+                }
+            ]
+
+        # Render chat history
+        chat_container = st.container()
+        for msg in st.session_state.messages:
+            chat_container.chat_message(msg["role"]).write(msg["content"])
+
+        # Inject CSS for a fixed-footer input
+        st.markdown(
+            """
+            <style>
+              .footer-input {
+                position: fixed;
+                bottom: 0;
+                left: 20%;   /* 1/(1+4) of the width */
+                width: 80%;  /* 4/(1+4) of the width */
+                padding: 1rem;
+                background: #f7f7f7;
+                box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+                z-index: 1000;
+              }
+              /* ensure messages don't get hidden under the footer */
+              .block-container {
+                padding-bottom: 6rem;
+              }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Build a form that clears on submit
+        footer = st.empty()
+        with footer.container():
+            st.markdown('<div class="footer-input">', unsafe_allow_html=True)
+            with st.form(key="chat_form", clear_on_submit=True):
+                user_question = st.text_input(
+                    "", 
+                    placeholder="Ask me about KPIs, segments or products…",
+                    label_visibility="hidden"
+                )
+                submitted = st.form_submit_button("➤")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # Handle new question
+        if submitted and user_question:
+            # Add & render the user’s message
+            st.session_state.messages.append({"role": "user", "content": user_question})
+            chat_container.chat_message("user").write(user_question)
+
+            # Call your LLM exactly as before
+            data_context = get_data_context()
+            body = {
+                "messages": [
+                    {"role": "system", "content": (
                         "You are an expert data analyst assistant. "
                         "Answer concisely in bullet points without repeating full context."
-                    ),
-                },
-                {"role": "assistant", "content": "Understood, here’s my answer:"},
-                {
-                    "role": "user",
-                    "content": f"Context:\n{data_context}\n\nQuestion: {user_question}",
-                },
-            ]
-        }
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json",
-        }
-        with st.spinner("Thinking…"):
-            r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
+                    )},
+                    {"role": "assistant", "content": "Understood, here’s my answer:"},
+                    {"role": "user", "content": f"Context:\n{data_context}\n\nQuestion: {user_question}"},
+                ]
+            }
+            headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
+            with st.spinner("Thinking…"):
+                r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
 
-        if r.status_code != 200:
-            st.error(f"Error {r.status_code}")
-            st.code(r.text, language="json")
-        else:
-            reply = r.json()["choices"][0]["message"]["content"]
-            # Remove any <<…>> guardrails
-            cleaned = "\n".join(
-                line
-                for line in reply.splitlines()
-                if not (line.startswith("<<") and line.endswith(">>"))
-            )
-            # c) Record & display the assistant’s reply
-            st.session_state.messages.append({"role": "assistant", "content": cleaned})
-            chat_container.chat_message("assistant").write(cleaned)
+            if r.status_code != 200:
+                st.error(f"Error {r.status_code}")
+                st.code(r.text, language="json")
+            else:
+                reply = r.json()["choices"][0]["message"]["content"]
+                cleaned = "\n".join(
+                    line for line in reply.splitlines()
+                    if not (line.startswith("<<") and line.endswith(">>"))
+                )
+                st.session_state.messages.append({"role": "assistant", "content": cleaned})
+                chat_container.chat_message("assistant").write(cleaned)
