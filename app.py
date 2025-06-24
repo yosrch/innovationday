@@ -381,11 +381,10 @@ with tabs[1]:
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
 
-            for line in [l.strip() for l in msg.splitlines() if l.strip()]:
-                st.markdown(f"<div class='llm-box'>{line}</div>", unsafe_allow_html=True)
+            pretty = format_insights(msg)
+            st.markdown(pretty, unsafe_allow_html=True)
 
 # --- Tab 3: Product Insights ---
-# --- Tab 3: Top Products & 7-Day Forecast + ABC Classification ---
 with tabs[2]:
     st.header("Top Products & 7-Day Forecast")
 
