@@ -28,7 +28,7 @@ st.markdown(
 
       /* a reusable info-panel style */
       .info-panel {
-        background-color: #fffbec !important;
+        background-color: #ccaea3 !important;
         padding: 1rem;
         border-radius: 0.5rem;
         box-sizing: border-box;
@@ -520,7 +520,7 @@ with tabs[3]:
         st.markdown(
             """
             <div style="
-                background-color: #fffbec;
+                background-color: ##ccaea3;
                 padding: 1rem;
                 border-radius: 0.5rem;
                 box-shadow: 0 1px 3px rgba(0,0,0,0.1);
