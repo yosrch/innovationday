@@ -516,22 +516,21 @@ with tabs[3]:
     info_col, chat_col = st.columns([1, 3], gap="small")
 
     # — Left: inline-styled info panel —
-    with info_col:
+      with info_col:
         st.markdown(
             """
             <div style="
-                background-color: ##ccaea3;
+                background-color: #ccaea3;
                 padding: 1rem;
                 border-radius: 0.5rem;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                ">
+            ">
               <h4 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h4>
               <p style="margin:0; font-size:0.95rem;">
                 Analyze your KPIs, segments & products and get actionable insights for decision-making.
               </p>
             </div>
             """,
-            unsafe_allow_html=True,
+            unsafe_allow_html=True
         )
 
     # — Right: the actual chat UI —
