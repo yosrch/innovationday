@@ -403,7 +403,7 @@ with tabs[1]:
                     st.stop()
                 msg = r.json()["choices"][0]["message"]["content"]
 
-                df = format_segment_strategies_to_table(raw)
+                df = format_segment_strategies_to_table(msg)
                 st.dataframe(df, use_container_width=True)
 
 # --- Tab 3: Product Insights ---
