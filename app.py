@@ -566,7 +566,7 @@ def get_data_context() -> str:
 
 # ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # — Sidebar (full-height) left panel—unchanged —
+    # — Sidebar (full-height) left panel —
     st.sidebar.markdown(
         """
         <div style="
@@ -607,48 +607,69 @@ with tabs[3]:
     st.markdown(
         """
         <style>
+          /* push input bar below any content */
           .footer-input {
             position: fixed;
             bottom: 0;
-            left: 25%;        /* adjust so it's to the right of the sidebar */
-            width: 75%;       /* main pane width */
+            left: 20%;       /* matches Streamlit sidebar width */
+            width: 80%;      /* the rest of the main pane */
             padding: 1rem;
             background: #f7f7f7;
             box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
             z-index: 1000;
+          }
+          /* make main content area have bottom padding
+             so it doesn't get hidden under the fixed footer */
+          .main > div.block-container {
+            padding-bottom: 5rem;
           }
         </style>
         """,
         unsafe_allow_html=True
     )
 
-    # 3) Now create the input box
-    prompt = st.text_input(
-        "",  # no label
-        key="chat_input",
-        placeholder="Ask me about KPIs, segments or products…",
-        label_visibility="hidden"
-    )
+    # 3) The fixed-footer wrapper
+    footer = st.empty()
+    with footer.container():
+        st.markdown('<div class="footer-input">', unsafe_allow_html=True)
 
-    # 4) When the user submits…
+        # 4) Your text_input with a key
+        prompt = st.text_input(
+            "",
+            key="chat_input",
+            placeholder="Ask me about KPIs, segments or products…",
+            label_visibility="hidden",
+            help="Type your question and hit Enter"
+        )
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # 5) When the user submits…
     if prompt:
         # record & display user
         st.session_state.messages.append({"role":"user","content":prompt})
         chat_container.chat_message("user").write(prompt)
 
+        # clear the input box
         st.session_state.chat_input = ""
-
 
         # build context + call Claude
         ctx = get_data_context()
         body = {
             "messages":[
-                {"role":"system","content":"You are an expert data analyst assistant. Answer concisely in bullet points without repeating full context."},
+                {"role":"system","content":
+                    "You are an expert data analyst assistant. "
+                    "Answer concisely in bullet points without repeating full context."
+                },
                 {"role":"assistant","content":"Understood, here’s my answer:"},
                 {"role":"user","content":f"Context:\n{ctx}\n\nQuestion: {prompt}"}
             ]
         }
-        headers = {"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}
+        headers = {
+            "Authorization":f"Bearer {CLAUDE_TOKEN}",
+            "Content-Type":"application/json"
+        }
+
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
 
@@ -657,10 +678,12 @@ with tabs[3]:
             st.code(r.text, language="json")
         else:
             reply = r.json()["choices"][0]["message"]["content"]
-            # strip <<…>>
+            # strip out any <<…>>
             cleaned = "\n".join(
                 line for line in reply.splitlines()
                 if not (line.startswith("<<") and line.endswith(">>"))
             )
-            st.session_state.messages.append({"role":"assistant","content":cleaned})
+            st.session_state.messages.append(
+                {"role":"assistant","content":cleaned}
+            )
             chat_container.chat_message("assistant").write(cleaned)
