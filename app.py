@@ -10,83 +10,34 @@ import datetime as dt
 # ——————————————————————————————————————————————————————
 # Global CSS & page config
 # ——————————————————————————————————————————————————————
-# Global custom CSS for our full-height sidebar card
 st.markdown(
     """
     <style>
-      /* Make the sidebar a fixed width (wide layout) */
-      .css-1d391kg { 
-        width: 300px; 
-      }
-
-      /* Our “card” wrapper */
-      .sidebar-card {
-        background-color: #ccaea3;
-        padding: 1.5rem;
-        border-radius: 1rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
-      }
-      /* Logo image inside the card */
-      .sidebar-card img {
-        width: 100%;
+      /* Add some breathing room around charts and tables */
+      .stPlotlyChart, .streamlit-expanderHeader {
+        margin-top: 1rem;
         margin-bottom: 1rem;
       }
-      /* Tighter spacing for radio buttons */
-      .sidebar-card .stRadio > div {
-        margin: 0.25rem 0;
+      /* Style LLM answer boxes */
+      .llm-box {
+        background-color: #f0f4ff;
+        border-left: 4px solid #3f51b5;
+        padding: 0.75rem 1rem;
+        margin: 0.5rem 0;
+        border-radius: 0.25rem;
+
+      /* a reusable info-panel style */
+      .info-panel {
+        background-color: #ccaea3 !important;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-sizing: border-box;
+        width: 100%;  
       }
     </style>
     """,
     unsafe_allow_html=True,
 )
-
-# Build our single sidebar “card”
-with st.sidebar:
-    st.markdown(
-        """
-        <div class="sidebar-card">
-          <!-- CBS logo -->
-          <img src="https://www.cbs-consulting.com/wp-content/uploads/cbs-consulting.jpg" alt="CBS Logo" />
-
-          <!-- Title + brief description -->
-          <h3>💬 AI Assistant</h3>
-          <p style="font-size:0.9rem; margin-bottom:1.5rem;">
-            Analyze your KPIs, segments & products and get actionable insights for decision-making.
-          </p>
-
-          <!-- Mode selector -->
-          <strong>Select Mode:</strong>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # the actual Streamlit radio control, styled by our CSS above
-    mode = st.radio(
-        "",
-        options=["Latest Updates", "Chat with CBS AI"],
-        index=1,
-    )
-
-    # always-visible basics
-    st.markdown(
-        """
-        **Basics**  
-        • Ask about KPIs, segments, products  
-        • Get bullet-point answers  
-        """
-    )
-
-    # tuck extras into an expander
-    with st.expander("More Options"):
-        st.markdown(
-            """
-            • Generate app boilerplate  
-            • Debug Streamlit code  
-            • Drill into segment stats  
-            """
-        )
 st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
 st.title("📊 Consumer Goods Analytics Demo")
 
