@@ -511,21 +511,78 @@ with tabs[2]:
 
 
 # --- Tab 4: Ask the Data ---
+import os
+import streamlit as st
+import pandas as pd
+import requests
+from databricks import sql
+
+# ─── CONFIG ────────────────────────────────────────────────────────────────────
+st.set_page_config(page_title="Consumer Goods Analytics Demo", layout="wide")
+
+# Load environment
+CLAUDE_URL   = os.getenv("CLAUDE_ENDPOINT_URL")
+CLAUDE_TOKEN = os.getenv("CLAUDE_BEARER_TOKEN")
+
+@st.cache_data(ttl=600)
+def load_table(query: str) -> pd.DataFrame:
+    conn = sql.connect(
+        server_hostname=os.getenv("DATABRICKS_SERVER_HOSTNAME"),
+        http_path=os.getenv("DATABRICKS_HTTP_PATH"),
+        access_token=os.getenv("DATABRICKS_ACCESS_TOKEN")
+    )
+    cursor = conn.cursor()
+    cursor.execute(query)
+    cols = [c[0] for c in cursor.description]
+    data = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return pd.DataFrame(data, columns=cols)
+
+@st.cache_data(ttl=600)
+def get_data_context() -> str:
+    df_kpis = load_table("""
+      SELECT
+        SUM(Total_Amount)  AS total_revenue,
+        AVG(Total_Amount)  AS avg_order_value,
+        COUNT(DISTINCT Customer_ID) AS unique_customers
+      FROM gold.fact_sales
+    """)
+    seg = load_table("SELECT segment, COUNT(*) AS cnt FROM gold.customer_segments GROUP BY segment ORDER BY segment")
+    abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
+    ctx = (
+        f"KPIs: Revenue €{df_kpis.total_revenue[0]:,.0f}, "
+        f"AOV €{df_kpis.avg_order_value[0]:,.2f}, "
+        f"Customers {df_kpis.unique_customers[0]:,}\n\n"
+        "Segments:\n"
+        + "\n".join(f"- {int(r.segment)}: {int(r.cnt)} customers"
+                    for _, r in seg.iterrows())
+        + "\n\nProduct ABC:\n"
+        + ", ".join(f"{row.Product_Name}({row.ABC_Category})"
+                    for _, row in abc.iterrows())
+    )
+    return ctx
+
+# ─── TAB LAYOUT ────────────────────────────────────────────────────────────────
+tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
+# ... your Tab 0–2 code remains unchanged ...
+
+# ─── TAB 4: Ask the Data ──────────────────────────────────────────────────────
 with tabs[3]:
-    # — Sidebar full-height with logo & description —
+    # LEFT-HAND PANEL — full-height description
     st.sidebar.markdown(
         """
         <div style="
+          background:#ccaea3;
           padding:1rem;
-          height:100vh;         /* full viewport height */
+          height:100vh;
           box-sizing:border-box;
-          background-color:#E4C6B6;
         ">
           <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
-               style="width:100%; display:block; margin:0 auto 1rem auto;" />
-          <h3 style="margin-bottom:0.25rem;">💬 AI Assistant</h3>
-          <p style="font-size:0.95rem; line-height:1.3;">
-            Analyze your KPIs, segments & products<br>
+               style="width:90%;margin-bottom:1rem;border-radius:8px;"/>
+          <h3 style="margin:0 0 .5rem 0; color:#333;">💬 AI Assistant</h3>
+          <p style="color:#222; line-height:1.4;">
+            Analyze your KPIs, segments & products<br/>
             and get actionable insights for decision-making.
           </p>
         </div>
@@ -533,88 +590,77 @@ with tabs[3]:
         unsafe_allow_html=True,
     )
 
-    st.subheader("💬 Ask the Data")
+    # MAIN CHAT AREA
+    st.markdown("## 💬 Ask the Data")
+    chat_container = st.container()
 
-    # — Inject CSS for a scrollable history and a sticky input box —
+    # initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role":"assistant",
+                "content":"Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
+            }
+        ]
+
+    # render history
+    for msg in st.session_state.messages:
+        chat_container.chat_message(msg["role"]).write(msg["content"])
+
+    # stick input to bottom
     st.markdown(
         """
         <style>
-          /* The chat history: scrollable but fixed height */
-          .chat-history {
-            height: calc(80vh - 10px);  /* adjust so header + footer fit */
-            overflow-y: auto;
-            padding: 1rem;
-            border: 1px solid #eee;
-            border-radius: 0.5rem;
-            background-color: #fafafa;
-          }
-
-          /* The input wrapper: stick to bottom of its column */
-          .chat-input-wrapper {
-            position: sticky;
+          .fixed-input {
+            position: fixed;
             bottom: 0;
-            background: white;
+            width: 75%;           /* match your main pane width */
             padding: 1rem;
-            border-top: 1px solid #ddd;
+            background: #f7f7f7;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
           }
         </style>
         """,
-        unsafe_allow_html=True,
+        unsafe_allow_html=True
     )
 
-    # — Render the history in a scrollable box —
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
-        ]
-
-    st.markdown('<div class="chat-history">', unsafe_allow_html=True)
-    for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # — The sticky input area —
-    st.markdown('<div class="chat-input-wrapper">', unsafe_allow_html=True)
-    user_question = st.chat_input(
+    # place the input inside a fixed footer div
+    user_q = st.text_input(
         "Ask me about KPIs, segments or products…",
-        key="ask_data_input"
+        key="persisted_input",
+        placeholder="Type your question here…"
     )
-    st.markdown('</div>', unsafe_allow_html=True)
+    if user_q:
+        # record & display user
+        st.session_state.messages.append({"role":"user","content":user_q})
+        chat_container.chat_message("user").write(user_q)
 
-    if user_question:
-        # echo user
-        st.session_state.messages.append({"role": "user", "content": user_question})
-        st.chat_message("user").write(user_question)
-
-        # build Claude prompt
-        data_context = get_data_context()
-        prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
+        # build prompt + call Claude
+        data_ctx = get_data_context()
+        prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
         body = {
-            "messages": [
-                {"role": "system", "content":
-                    "You are an expert data analyst assistant. Answer concisely in bullet points without repeating full context."
-                },
-                {"role": "assistant", "content": "Understood, here’s my answer:"},
-                {"role": "user",      "content": prompt},
+            "messages":[
+                {"role":"system","content":"You are an expert data analyst assistant. Answer concisely in bullet points without repeating full context."},
+                {"role":"assistant","content":"Understood, here’s my answer:"},
+                {"role":"user","content":prompt}
             ]
         }
-        headers = {
-            "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type":  "application/json",
-        }
-
+        headers = {"Authorization":f"Bearer {CLAUDE_TOKEN}","Content-Type":"application/json"}
         with st.spinner("Thinking…"):
             r = requests.post(CLAUDE_URL, json=body, headers=headers, timeout=120)
-            if r.status_code != 200:
-                st.error(f"Invocation failed: {r.status_code}")
-                st.code(r.text, language="json")
-                st.stop()
+        if r.status_code!=200:
+            st.error(f"Error {r.status_code}")
+            st.code(r.text, language="json")
+        else:
             reply = r.json()["choices"][0]["message"]["content"]
+            # strip any <<…>> tokens
+            cleaned = "\n".join(
+                line for line in reply.splitlines()
+                if not (line.startswith("<<") and line.endswith(">>"))
+            )
+            # record & display assistant
+            st.session_state.messages.append({"role":"assistant","content":cleaned})
+            chat_container.chat_message("assistant").write(cleaned)
 
-        # clean & echo assistant
-        cleaned = "\n".join(
-            line for line in reply.splitlines()
-            if not (line.startswith("<<") and line.endswith(">>"))
-        )
-        st.session_state.messages.append({"role": "assistant", "content": cleaned})
-        st.chat_message("assistant").write(cleaned)
+    # push footer so it doesn’t overlap content
+    st.markdown("<div style='height:100px;'></div>", unsafe_allow_html=True)
