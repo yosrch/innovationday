@@ -512,64 +512,105 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    # Use Streamlit's built-in sidebar so it stretches top→bottom
+    # — Sidebar full-height with logo & description —
     st.sidebar.markdown(
         """
         <div style="
-          border-radius:0rem;
-          padding:0rem;
-          height:100vh;  /* sidebar full viewport height */
+          padding:1rem;
+          height:100vh;         /* full viewport height */
           box-sizing:border-box;
+          background-color:#E4C6B6;  /* light CBS-brand tone */
         ">
-          <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png" 
-               style="width:80%;margin-bottom:1rem;" />
-          <h3 style="margin:0 0 .5rem 0;">💬 AI Assistant</h3>
-          <p style="font-size:1rem; margin:1;">
-            Analyze your KPIs, segments & products and<br>
-            get actionable insights for decision-making.
+          <img src="https://tl.vhv.rs/dpng/s/423-4235943_company-logo-cbs-corporate-business-solutions-cbs-consulting.png"
+               style="width:80%; display:block; margin:0 auto 1rem auto;" />
+          <h3 style="margin-bottom:0.25rem;">💬 AI Assistant</h3>
+          <p style="font-size:0.95rem; line-height:1.3;">
+            Analyze your KPIs, segments & products<br>
+            and get actionable insights<br>
+            for decision-making.
           </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Now the main chat area
+    # — Main panel header —
     st.subheader("💬 Ask the Data")
 
-    # Initialize history if needed
+    # — Scrollable container for the chat history —
+    st.markdown(
+        """
+        <style>
+          .chat-history {
+            height: 60vh;        /* adjust as needed */
+            overflow-y: auto;
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 0.5rem;
+            background-color: #fafafa;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    chat_area = st.container()
+    chat_area.markdown('<div class="chat-history">', unsafe_allow_html=True)
+
+    # — Initialize history if needed —
     if "messages" not in st.session_state:
         st.session_state.messages = [
             {"role": "assistant", "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"}
         ]
 
-    # Draw chat history in a scrollable container
-    chat_container = st.container()
+    # — Render chat history —
     for msg in st.session_state.messages:
-        chat_container.chat_message(msg["role"]).write(msg["content"])
+        chat_area.chat_message(msg["role"]).write(msg["content"])
 
-    # Place the input prompt *after* the history, so it always appears at the bottom
-    user_question = st.chat_input("Ask me about KPIs, segments or products…")
+    chat_area.markdown("</div>", unsafe_allow_html=True)
+
+    # — Pinned input at the bottom —
+    st.markdown(
+        """
+        <style>
+          .input-box {
+            margin-top:1rem;
+            padding:1rem;
+            border:1px solid #ddd;
+            border-radius:0.5rem;
+            background-color:#f0f4ff;
+          }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="input-box">', unsafe_allow_html=True)
+
+    user_question = st.chat_input(
+        "Ask me about KPIs, segments or products…",
+        key="ask_data_input"
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+
     if user_question:
-        # record & render user message
+        # — Echo user —
         st.session_state.messages.append({"role": "user", "content": user_question})
-        chat_container.chat_message("user").write(user_question)
+        chat_area.chat_message("user").write(user_question)
 
-        # build context + call Claude
+        # — Build & call Claude prompt (exactly your existing logic) —
         data_context = get_data_context()
         prompt = f"Context:\n{data_context}\n\nQuestion: {user_question}"
         body = {
             "messages": [
-                {"role": "system", "content": (
-                    "You are an expert data analyst assistant. Answer concisely in bullet points "
-                    "without repeating full context."
-                )},
+                {"role": "system", "content":
+                    "You are an expert data analyst assistant. Answer concisely in bullet points without repeating full context."
+                },
                 {"role": "assistant", "content": "Understood, here’s my answer:"},
-                {"role": "user", "content": prompt},
+                {"role": "user",      "content": prompt},
             ]
         }
         headers = {
             "Authorization": f"Bearer {CLAUDE_TOKEN}",
-            "Content-Type": "application/json",
+            "Content-Type":  "application/json",
         }
 
         with st.spinner("Thinking…"):
@@ -580,10 +621,10 @@ with tabs[3]:
                 st.stop()
             reply = r.json()["choices"][0]["message"]["content"]
 
-        # strip <<…>> and record assistant reply
+        # — Clean & echo assistant —
         cleaned = "\n".join(
             line for line in reply.splitlines()
             if not (line.startswith("<<") and line.endswith(">>"))
         )
         st.session_state.messages.append({"role": "assistant", "content": cleaned})
-        chat_container.chat_message("assistant").write(cleaned)
+        chat_area.chat_message("assistant").write(cleaned)
