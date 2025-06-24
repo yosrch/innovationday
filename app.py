@@ -25,6 +25,14 @@ st.markdown(
         padding: 0.75rem 1rem;
         margin: 0.5rem 0;
         border-radius: 0.25rem;
+
+      /* a reusable info-panel style */
+      .info-panel {
+        background-color: #fffbec !important;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-sizing: border-box;
+        width: 100%;  
       }
     </style>
     """,
@@ -504,74 +512,78 @@ with tabs[2]:
 
 # --- Tab 4: Ask the Data ---
 with tabs[3]:
-    # two-column layout: tinted sidebar + chat area
     info_col, chat_col = st.columns([1, 3], gap="small")
+
+    # — Left: info panel —
     with info_col:
         st.markdown(
             """
-            <div style="background:#fffbec;padding:1rem;border-radius:0.5rem">
-              <h4>💬 AI Assistant</h4>
-              <p>Analyze your KPIs, segments & products and get actionable insights for decision-making.</p>
+            <div class="info-panel">
+              <h4 style="margin:0;">💬 AI Assistant</h4>
+              <p style="margin:0.5rem 0 0;">
+                Analyze your KPIs, segments & products and get actionable insights for decision-making.
+              </p>
             </div>
             """,
             unsafe_allow_html=True,
         )
 
+    # — Right: chat area —
     with chat_col:
-        # init history + seed greeting
+        st.subheader("💬 Ask the Data")
+
+        # initialize history with a greeting if empty
         if "messages" not in st.session_state:
             st.session_state.messages = [{
                 "role": "assistant",
-                "content": (
-                    "Hi there! 👋\n\n"
-                    "I can help you explore your data. What would you like to ask?"
-                )
+                "content": "Hi there! 👋\n\nI can help you explore your data. What would you like to ask?"
             }]
-        # render existing
+
+        # render all prior messages
         for msg in st.session_state.messages:
             st.chat_message(msg["role"]).write(msg["content"])
 
-        # chat input
+        # prompt for new user question
         user_q = st.chat_input("Type your question here…")
         if user_q:
-            # show user
+            # display user question
             st.session_state.messages.append({"role":"user","content":user_q})
             st.chat_message("user").write(user_q)
 
-            # build prompt
-            ctx = get_data_context()
-            prompt = f"Context:\n{ctx}\n\nQuestion: {user_q}"
+            # build context + prompt
+            data_ctx = get_data_context()
+            prompt = f"Context:\n{data_ctx}\n\nQuestion: {user_q}"
 
+            # call Claude
             payload = {
                 "messages": [
-                    {"role":"system","content":(
+                    {"role": "system", "content":
                         "You are a concise data-analysis assistant. "
                         "Answer in bullet points without repeating the full context."
-                    )},
-                    {"role":"user","content":prompt}
+                    },
+                    {"role": "user", "content": prompt}
                 ]
             }
             headers = {
                 "Authorization": f"Bearer {CLAUDE_TOKEN}",
                 "Content-Type": "application/json"
             }
-
-            # call Claude
             with st.spinner("Thinking…"):
                 r = requests.post(CLAUDE_URL, json=payload, headers=headers, timeout=120)
-                if r.status_code != 200:
-                    st.error(f"Invocation failed: {r.status_code}")
-                    st.code(r.text, language="json")
-                    st.stop()
-                reply = r.json()["choices"][0]["message"]["content"]
 
-            # strip guardrails
-            lines = [
-                ln for ln in reply.splitlines()
-                if not (ln.strip().startswith("<<") and ln.strip().endswith(">>"))
+            if r.status_code != 200:
+                st.error(f"Invocation failed: {r.status_code}")
+                st.code(r.text, language="json")
+                st.stop()
+
+            assistant_reply = r.json()["choices"][0]["message"]["content"]
+            # strip any <<…>> guardrail tokens
+            cleaned = [
+                ln for ln in assistant_reply.splitlines()
+                if not (ln.startswith("<<") and ln.endswith(">>"))
             ]
-            assistant_ans = "\n".join(lines).strip()
+            answer = "\n".join(cleaned).strip()
 
-            # show assistant
-            st.session_state.messages.append({"role":"assistant","content":assistant_ans})
-            st.chat_message("assistant").write(assistant_ans)
+            # display assistant answer
+            st.session_state.messages.append({"role":"assistant","content":answer})
+            st.chat_message("assistant").write(answer)
