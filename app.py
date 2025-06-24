@@ -529,7 +529,7 @@ with tabs[3]:
                 justify-content: center;
             ">
               <h4 style="margin:0 0 0.5rem 0;">💬 AI Assistant</h4>
-              <p style="margin:0; font-size:0.95rem;">
+              <p style="margin:0; font-size:0.95rem; line-height:1.4;">
                 Analyze your KPIs, segments & products and get actionable insights for decision-making.
               </p>
             </div>
