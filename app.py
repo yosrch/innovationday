@@ -39,7 +39,16 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.set_page_config(page_title="Consumer Goods Analytics", layout="wide")
-st.title("📊 Consumer Goods Analytics Demo")
+st.markdown(
+    """
+    <div style="display:flex; align-items:center; gap:0.5rem;">
+      <img src="https://www.cbs-consulting.com/wp-content/uploads/cropped-favicon_600x600-192x192.png"
+           style="height:2.5rem; width:2.5rem;" />
+      <h1 style="margin:0; font-size:2rem;">Consumer Goods Analytics Demo</h1>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Load environment variables
 load_dotenv()
