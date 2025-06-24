@@ -523,7 +523,7 @@ with tabs[3]:
                 background-color: #f0dcd5;
                 padding: 1rem;
                 border-radius: 0.5rem;
-                min-height: 200px;
+                height: 100vh;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
