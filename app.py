@@ -516,7 +516,6 @@ with tabs[3]:
     st.sidebar.markdown(
         """
         <div style="
-          background-color:#f0dcd5;
           border-radius:0rem;
           padding:0rem;
           height:100vh;  /* sidebar full viewport height */
