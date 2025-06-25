@@ -467,8 +467,9 @@ with tabs[2]:
         )
         fig_bar.update_traces(marker_line_width=0)
         fig_bar.update_layout(
+            title_font=dict(size=22),
             yaxis=dict(categoryorder="total ascending"),
-            margin=dict(t=40, b=40)
+            margin=dict(t=60, b=40)
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
