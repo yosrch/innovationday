@@ -452,7 +452,7 @@ with tabs[2]:
         sel = prod[prod["Product_Name"].isin(picked)]
 
     # Create two side-by-side columns
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([2, 3])
 
     # 1) Horizontal Bar Chart: Top Products by Revenue
     with col1:
