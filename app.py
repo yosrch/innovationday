@@ -451,23 +451,29 @@ with tabs[2]:
         )
         sel = prod[prod["Product_Name"].isin(picked)]
 
-    # 4) Clean, simple bar chart
+    # Create two side-by-side columns
+col1, col2 = st.columns(2)
+
+# 1) Horizontal Bar Chart: Top Products by Revenue
+with col1:
     fig_bar = px.bar(
         sel,
-        x="Product_Name",
-        y="revenue",
-        labels={"Product_Name":"Product","revenue":"Revenue (€)"},
+        x="revenue",
+        y="Product_Name",
+        orientation="h",
+        labels={"Product_Name": "Product", "revenue": "Revenue (€)"},
         title=f"{mode} by Revenue",
         template="plotly_white",
     )
     fig_bar.update_traces(marker_line_width=0)
     fig_bar.update_layout(
-        xaxis_tickangle=-45,
-        margin=dict(b=120)
+        yaxis=dict(categoryorder="total ascending"),
+        margin=dict(t=40, b=40)
     )
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # 5) 7-Day Forecast for the same selection
+# 2) Forecast Line Chart
+with col2:
     st.subheader("7-Day Sales Forecast")
     fc_sel = fc_all[fc_all["Product_ID"].isin(sel["Product_ID"].tolist())]
     fig_fc = px.line(
@@ -475,13 +481,13 @@ with tabs[2]:
         x="ds",
         y="yhat",
         color="Product_Name",
-        labels={"ds":"Date","yhat":"Forecast (€)"},
+        labels={"ds": "Date", "yhat": "Forecast (€)"},
         template="plotly_white"
     )
     fig_fc.update_layout(
         legend_title="Product",
         xaxis_tickformat="%d.%m.%Y",
-        margin=dict(t=30,b=40)
+        margin=dict(t=30, b=40)
     )
     st.plotly_chart(fig_fc, use_container_width=True)
 
