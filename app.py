@@ -44,7 +44,7 @@ st.markdown(
     <div style="display:flex; align-items:center; gap:0.5rem;">
       <img src="https://www.cbs-consulting.com/wp-content/uploads/cropped-favicon_600x600-192x192.png"
            style="height:2.5rem; width:2.5rem;" />
-      <h1 style="margin:0; font-size:2rem;">Consumer Goods Analytics Demo</h1>
+      <h1 style="margin:0; font-size:2rem;">Consumer Goods Analytics at Tech GmbH</h1>
     </div>
     """,
     unsafe_allow_html=True,
