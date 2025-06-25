@@ -492,7 +492,7 @@ with col2:
     st.plotly_chart(fig_fc, use_container_width=True)
 
 
-st.plotly_chart(fig_fc, use_container_width=True)
+    st.plotly_chart(fig_fc, use_container_width=True)
 
     # --- Now ABC Classification side-by-side ---
     prod_abc = load_table("SELECT * FROM gold.product_abc ORDER BY revenue DESC")
