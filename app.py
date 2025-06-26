@@ -84,24 +84,9 @@ def load_table(query: str) -> pd.DataFrame:
 @st.cache_data(ttl=600)
 def get_data_context() -> str:
     """
-    Fetches current KPIs, segment counts, ABC categories,
-    and 100 top/bottom sales records by revenue.
-    Returns them as a single plaintext context blob.
+    Builds a complete plaintext summary of key KPIs, segment sizes,
+    product categories, and sales highlights to provide Claude with structured context.
     """
-    # 4) Top & bottom 100 sales by revenue
-    top_sales = load_table("""
-        SELECT *
-        FROM gold.fact_sales
-        ORDER BY Total_Amount DESC
-        LIMIT 10
-    """)
-    bottom_sales = load_table("""
-        SELECT *
-        FROM gold.fact_sales
-        ORDER BY Total_Amount ASC
-        LIMIT 10
-    """)
-
     # 1) KPIs
     df_kpis = load_table("""
         SELECT
@@ -123,44 +108,60 @@ def get_data_context() -> str:
     # 3) ABC categories
     prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
 
+    # 4) Top & bottom sales by revenue
+    sales_extreme = load_table("""
+        SELECT Order_Date, Product_Name, Quantity, Unit_Price, Total_Amount,
+               Sales_Channel, Product_Group
+        FROM gold.fact_sales
+        ORDER BY Total_Amount DESC
+        LIMIT 10
+    """)
+    top_sales = sales_extreme.copy()
 
-    # Build lines
+    sales_extreme_low = load_table("""
+        SELECT Order_Date, Product_Name, Quantity, Unit_Price, Total_Amount,
+               Sales_Channel, Product_Group
+        FROM gold.fact_sales
+        ORDER BY Total_Amount ASC
+        LIMIT 10
+    """)
+    bottom_sales = sales_extreme_low.copy()
+
+    # 5) Assemble lines
     lines = [
-        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
-        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
-        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
+        "🧮 **Overall KPIs:**",
+        f"- Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
+        f"- Average Order Value (AOV): €{df_kpis.avg_order_value[0]:,.2f}",
+        f"- Total Customers: {df_kpis.unique_customers[0]:,}",
         "",
-        "🔖 Segments:"
+        "👥 **Customer Segmentation:**"
     ]
     for _, row in seg_sizes.iterrows():
         pct = row["count"] / total * 100
-        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
-    
-    lines.append("")
-lines.append("📊 Sales Highlights:")
-
-lines.append("These are the 10 transactions with the highest revenue:")
-lines.append("Format: Date | Product | Qty | Total € | Channel | Unit € | Group")
-for _, row in top_sales.iterrows():
-    lines.append(
-        f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
-        f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
-    )
-
-lines.append("")
-lines.append("These are the 10 transactions with the lowest revenue:")
-for _, row in bottom_sales.iterrows():
-    lines.append(
-        f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
-        f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
-    )
+        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} customers ({pct:.1f}%)")
 
     lines.append("")
-    lines.append("📦 ABC Categories:")
+    lines.append("📦 **Product Distribution:**")
     for _, row in prod_abc.iterrows():
-        lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
+        lines.append(f"- {row.Product_Name}: Category {row.ABC_Category}")
 
-    
+    lines.append("")
+    lines.append("📊 **Sales Highlights:**")
+    lines.append("These are the 10 transactions with the **highest revenue**:")
+    lines.append("Format: Date | Product | Qty | Total € | Channel | Unit € | Group")
+    for _, row in top_sales.iterrows():
+        lines.append(
+            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+        )
+
+    lines.append("")
+    lines.append("These are the 10 transactions with the **lowest revenue**:")
+    for _, row in bottom_sales.iterrows():
+        lines.append(
+            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+        )
 
     return "\n".join(lines)
 
