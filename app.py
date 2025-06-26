@@ -84,11 +84,12 @@ def load_table(query: str) -> pd.DataFrame:
 @st.cache_data(ttl=600)
 def get_data_context() -> str:
     """
-    Fetches current KPIs, segment sizes, ABC categories,
-    and weekly revenue per product from the last 6 weeks.
-    Returns a text blob for Claude context.
+    Fetches KPIs, segment counts, ABC categories, and next week's product forecasts
+    and returns them as a single plaintext context blob.
     """
-    # 1. KPIs
+    import pandas as pd
+
+    # 1) KPIs
     df_kpis = load_table("""
         SELECT
             SUM(Total_Amount)            AS total_revenue,
@@ -97,58 +98,50 @@ def get_data_context() -> str:
         FROM gold.fact_sales
     """)
 
-    # 2. Segment sizes
+    # 2) Segment counts
     seg_sizes = load_table("""
-        SELECT segment, COUNT(*) AS seg_count
+        SELECT segment, COUNT(*) AS count
         FROM gold.customer_segments
         GROUP BY segment
         ORDER BY segment
     """)
-    total = seg_sizes["seg_count"].sum()
+    total = seg_sizes["count"].sum()
 
-    # 3. ABC product categories
-    prod_abc = load_table("""
-        SELECT Product_Name, ABC_Category
-        FROM gold.product_abc
+    # 3) ABC categories
+    prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
+
+    # 4) Forecast for next week (Top 3)
+    df_forecast = load_table(f"""
+        SELECT pf.Product_ID, p.Product_Name, SUM(pf.yhat) AS forecast_sum
+        FROM gold.product_forecast pf
+        JOIN gold.product_abc p ON pf.Product_ID = p.Product_ID
+        WHERE pf.ds BETWEEN '2025-06-30' AND '2025-07-06'
+        GROUP BY pf.Product_ID, p.Product_Name
+        ORDER BY forecast_sum DESC
+        LIMIT 3
     """)
 
-    # 4. Weekly product revenue (last 6 weeks)
-    weekly_rev = load_table("""
-        SELECT
-            Product_Name,
-            WEEK(Sale_Date) AS sales_week,
-            SUM(Total_Amount) AS revenue
-        FROM gold.fact_sales
-        WHERE Sale_Date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 WEEK)
-        GROUP BY Product_Name, WEEK(Sale_Date)
-        ORDER BY Product_Name, sales_week
-    """)
-
-    # --- Build lines ---
+    # Build lines
     lines = [
-        f"🧮 Total Revenue: €{df_kpis.iloc[0]['total_revenue']:,.0f}",
-        f"📈 Avg Order Value: €{df_kpis.iloc[0]['avg_order_value']:,.2f}",
-        f"👥 Unique Customers: {df_kpis.iloc[0]['unique_customers']:,}",
+        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
+        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
+        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
         "",
-        "🔖 Customer Segments:"
+        "🔖 Segments:"
     ]
     for _, row in seg_sizes.iterrows():
-        pct = row["seg_count"] / total * 100
-        lines.append(f"- Segment {row.segment}: {row['seg_count']:,} ({pct:.1f}%)")
+        pct = row["count"] / total * 100
+        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
 
     lines.append("")
-    lines.append("📦 Product Categories (ABC):")
+    lines.append("📦 ABC Categories:")
     for _, row in prod_abc.iterrows():
         lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
 
     lines.append("")
-    lines.append("📊 Weekly Revenue by Product:")
-    for product, group in weekly_rev.groupby("Product_Name"):
-        line = f"- {product}: " + ", ".join(
-            f"W{int(w)}: €{int(r):,}"
-            for w, r in zip(group.sales_week, group.revenue)
-        )
-        lines.append(line)
+    lines.append("🔮 Forecast: Top 3 Products for Next Week")
+    for _, row in df_forecast.iterrows():
+        lines.append(f"- {row.Product_Name}: forecasted sales = {row.forecast_sum:,.0f}")
 
     return "\n".join(lines)
 
