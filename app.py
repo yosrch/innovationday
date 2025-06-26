@@ -675,7 +675,7 @@ import requests
 from databricks import sql
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Consumer Goods Analytics Demo", layout="wide")
+st.set_page_config(page_title="Consumer Goods Analytics at Techies GmbH", layout="wide")
 
 # Load environment
 CLAUDE_URL   = os.getenv("CLAUDE_ENDPOINT_URL")
