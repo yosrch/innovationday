@@ -873,5 +873,14 @@ with tabs[3]:
                     line for line in reply.splitlines()
                     if not (line.startswith("<<") and line.endswith(">>"))
                 )
-                st.session_state.messages.append({"role": "assistant", "content": cleaned})
-                chat_container.chat_message("assistant").write(cleaned)
+
+                # ✨ Format bullet points to render nicely
+                if "•" in cleaned:
+                    bullet_points = cleaned.split("•")
+                    formatted = "\n".join(f"• {bp.strip()}" for bp in bullet_points if bp.strip())
+                else:
+                    formatted = cleaned
+
+                # Show response
+                st.session_state.messages.append({"role": "assistant", "content": formatted})
+                chat_container.chat_message("assistant").write(formatted)
