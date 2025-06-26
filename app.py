@@ -88,6 +88,19 @@ def get_data_context() -> str:
     and 100 top/bottom sales records by revenue.
     Returns them as a single plaintext context blob.
     """
+    # 4) Top & bottom 100 sales by revenue
+    top_sales = load_table("""
+        SELECT *
+        FROM gold.fact_sales
+        ORDER BY Total_Amount DESC
+        LIMIT 100
+    """)
+    bottom_sales = load_table("""
+        SELECT *
+        FROM gold.fact_sales
+        ORDER BY Total_Amount ASC
+        LIMIT 100
+    """)
 
     # 1) KPIs
     df_kpis = load_table("""
@@ -110,22 +123,19 @@ def get_data_context() -> str:
     # 3) ABC categories
     prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
 
-    # 4) Top & bottom 100 sales by revenue
-    top_sales = load_table("""
-        SELECT *
-        FROM gold.fact_sales
-        ORDER BY Total_Amount DESC
-        LIMIT 100
-    """)
-    bottom_sales = load_table("""
-        SELECT *
-        FROM gold.fact_sales
-        ORDER BY Total_Amount ASC
-        LIMIT 100
-    """)
 
-
-
+    # Build lines
+    lines = [
+        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
+        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
+        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
+        "",
+        "🔖 Segments:"
+    ]
+    for _, row in seg_sizes.iterrows():
+        pct = row["count"] / total * 100
+        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
+    
     lines.append("")
     lines.append("🔝 Top 100 Sales Records by Revenue:")
     for _, row in top_sales.iterrows():
@@ -141,6 +151,13 @@ def get_data_context() -> str:
             f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
             f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
         )
+
+    lines.append("")
+    lines.append("📦 ABC Categories:")
+    for _, row in prod_abc.iterrows():
+        lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
+
+    
 
     return "\n".join(lines)
 
