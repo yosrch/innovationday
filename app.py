@@ -1,4 +1,4 @@
-datasphereaa1.gold.product_abcimport os
+import os
 from dotenv import load_dotenv
 import streamlit as st
 import pandas as pd
