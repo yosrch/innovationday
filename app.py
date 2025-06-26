@@ -854,7 +854,7 @@ with tabs[3]:
                 "messages": [
                     {"role": "system", "content": (
                         "You are an expert data analyst assistant. "
-                        "Answer concisely in clean bullet points. Always use a new line for each bullet. Avoid repeating the full context."
+                        "Please format the answer as a Markdown bullet list, using '- ' at the start of each line, with one item per line."
                     )},
                     {"role": "assistant", "content": "Understood, here’s my answer:"},
                     {"role": "user", "content": (
