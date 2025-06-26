@@ -84,9 +84,10 @@ def load_table(query: str) -> pd.DataFrame:
 @st.cache_data(ttl=600)
 def get_data_context() -> str:
     """
-    Fetches current KPIs, segment counts, and ABC categories
-    and returns them as a single plaintext context blob.
+    Fetches current KPIs, segment sizes, ABC categories, and monthly revenue trends.
+    Returns as a single plaintext blob for LLM context.
     """
+
     # 1) KPIs
     df_kpis = load_table("""
       SELECT
@@ -95,7 +96,8 @@ def get_data_context() -> str:
         COUNT(DISTINCT Customer_ID)  AS unique_customers
       FROM gold.fact_sales
     """)
-    # 2) Segment counts
+
+    # 2) Segment sizes
     seg_sizes = load_table("""
       SELECT segment, COUNT(*) AS count
       FROM gold.customer_segments
@@ -103,10 +105,23 @@ def get_data_context() -> str:
       ORDER BY segment
     """)
     total = seg_sizes["count"].sum()
+
     # 3) ABC categories
     prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
 
-    # Build lines
+    # 4) Revenue trend by ABC Category
+    rev_trend = load_table("""
+      SELECT
+        DATE_TRUNC('month', Order_Date) AS month,
+        ABC_Category,
+        SUM(Total_Amount) AS revenue
+      FROM gold.fact_sales
+      JOIN gold.product_abc USING (Product_Name)
+      GROUP BY 1, 2
+      ORDER BY 1 DESC, 2
+    """)
+
+    # Build plain-text context
     lines = [
         f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
         f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
@@ -114,13 +129,22 @@ def get_data_context() -> str:
         "",
         "🔖 Segments:"
     ]
+
     for _, row in seg_sizes.iterrows():
         pct = row["count"] / total * 100
         lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
+
     lines.append("")
     lines.append("📦 ABC Categories:")
     for _, row in prod_abc.iterrows():
         lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
+
+    lines.append("")
+    lines.append("📊 Revenue Trend by ABC Category (last 3 months):")
+    for _, row in rev_trend.iterrows():
+        lines.append(
+            f"- {row['month'].strftime('%b %Y')} / Category {row['ABC_Category']}: €{row['revenue']:,.0f}"
+        )
 
     return "\n".join(lines)
 
