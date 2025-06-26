@@ -124,22 +124,7 @@ def get_data_context() -> str:
         LIMIT 100
     """)
 
-    # Build lines
-    lines = [
-        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
-        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
-        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
-        "",
-        "🔖 Segments:"
-    ]
-    for _, row in seg_sizes.iterrows():
-        pct = row["count"] / total * 100
-        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
 
-    lines.append("")
-    lines.append("📦 ABC Categories:")
-    for _, row in prod_abc.iterrows():
-        lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
 
     lines.append("")
     lines.append("🔝 Top 100 Sales Records by Revenue:")
