@@ -93,13 +93,13 @@ def get_data_context() -> str:
         SELECT *
         FROM gold.fact_sales
         ORDER BY Total_Amount DESC
-        LIMIT 100
+        LIMIT 10
     """)
     bottom_sales = load_table("""
         SELECT *
         FROM gold.fact_sales
         ORDER BY Total_Amount ASC
-        LIMIT 100
+        LIMIT 10
     """)
 
     # 1) KPIs
@@ -137,7 +137,7 @@ def get_data_context() -> str:
         lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
     
     lines.append("")
-    lines.append("🔝 Top 100 Sales Records by Revenue:")
+    lines.append("🔝 Top 10 Sales Records by Revenue:")
     for _, row in top_sales.iterrows():
         lines.append(
             f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
@@ -145,7 +145,7 @@ def get_data_context() -> str:
         )
 
     lines.append("")
-    lines.append("🔻 Bottom 100 Sales Records by Revenue:")
+    lines.append("🔻 Bottom 10 Sales Records by Revenue:")
     for _, row in bottom_sales.iterrows():
         lines.append(
             f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
