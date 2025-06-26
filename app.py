@@ -137,20 +137,23 @@ def get_data_context() -> str:
         lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
     
     lines.append("")
-    lines.append("🔝 Top 10 Sales Records by Revenue:")
-    for _, row in top_sales.iterrows():
-        lines.append(
-            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
-            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
-        )
+lines.append("📊 Sales Highlights:")
 
-    lines.append("")
-    lines.append("🔻 Bottom 10 Sales Records by Revenue:")
-    for _, row in bottom_sales.iterrows():
-        lines.append(
-            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
-            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
-        )
+lines.append("These are the 10 transactions with the highest revenue:")
+lines.append("Format: Date | Product | Qty | Total € | Channel | Unit € | Group")
+for _, row in top_sales.iterrows():
+    lines.append(
+        f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+        f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+    )
+
+lines.append("")
+lines.append("These are the 10 transactions with the lowest revenue:")
+for _, row in bottom_sales.iterrows():
+    lines.append(
+        f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+        f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+    )
 
     lines.append("")
     lines.append("📦 ABC Categories:")
