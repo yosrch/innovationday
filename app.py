@@ -189,7 +189,7 @@ def format_insights(raw: str) -> str:
     md += bullets
     return "\n".join(md)
 
-tabs = st.tabs(["Overview", "Segmentation", "Product Insights", "Ask the Data"])
+tabs = st.tabs(["Overview", "Customer Segmentation", "Product Insights", "Ask your Data"])
 
 # OpenAI-powered marketing tips
 import datetime as dt
