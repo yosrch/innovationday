@@ -854,7 +854,7 @@ with tabs[3]:
                 "messages": [
                     {"role": "system", "content": (
                         "You are an expert data analyst assistant. "
-                        "Answer concisely in bullet points without repeating full context."
+                        "Answer concisely in clean bullet points. Always use a new line for each bullet. Avoid repeating the full context."
                     )},
                     {"role": "assistant", "content": "Understood, here’s my answer:"},
                     {"role": "user", "content": f"Context:\n{data_context}\n\nQuestion: {user_question}"},
