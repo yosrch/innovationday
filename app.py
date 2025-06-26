@@ -857,7 +857,11 @@ with tabs[3]:
                         "Answer concisely in clean bullet points. Always use a new line for each bullet. Avoid repeating the full context."
                     )},
                     {"role": "assistant", "content": "Understood, here’s my answer:"},
-                    {"role": "user", "content": f"Context:\n{data_context}\n\nQuestion: {user_question}"},
+                    {"role": "user", "content": (
+                        f"Context:\n{data_context}\n\n"
+                        f"Question: {user_question}\n\n"
+                        "Please format the answer using clean bullet points, with each bullet on its own line. Start each bullet with '• '."
+                    )},
                 ]
             }
             headers = {"Authorization": f"Bearer {CLAUDE_TOKEN}", "Content-Type": "application/json"}
