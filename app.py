@@ -1,4 +1,4 @@
-import os
+datasphereaa1.gold.product_abcimport os
 from dotenv import load_dotenv
 import streamlit as st
 import pandas as pd
@@ -84,10 +84,10 @@ def load_table(query: str) -> pd.DataFrame:
 @st.cache_data(ttl=600)
 def get_data_context() -> str:
     """
-    Fetches KPIs, segment counts, ABC categories, and next week's product forecasts
-    and returns them as a single plaintext context blob.
+    Fetches current KPIs, segment counts, ABC categories,
+    and 100 top/bottom sales records by revenue.
+    Returns them as a single plaintext context blob.
     """
-    import pandas as pd
 
     # 1) KPIs
     df_kpis = load_table("""
@@ -110,15 +110,18 @@ def get_data_context() -> str:
     # 3) ABC categories
     prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
 
-    # 4) Forecast for next week (Top 3)
-    df_forecast = load_table(f"""
-        SELECT pf.Product_ID, p.Product_Name, SUM(pf.yhat) AS forecast_sum
-        FROM gold.product_forecast pf
-        JOIN gold.product_abc p ON pf.Product_ID = p.Product_ID
-        WHERE pf.ds BETWEEN '2025-06-30' AND '2025-07-06'
-        GROUP BY pf.Product_ID, p.Product_Name
-        ORDER BY forecast_sum DESC
-        LIMIT 3
+    # 4) Top & bottom 100 sales by revenue
+    top_sales = load_table("""
+        SELECT *
+        FROM gold.fact_sales
+        ORDER BY Total_Amount DESC
+        LIMIT 100
+    """)
+    bottom_sales = load_table("""
+        SELECT *
+        FROM gold.fact_sales
+        ORDER BY Total_Amount ASC
+        LIMIT 100
     """)
 
     # Build lines
@@ -139,9 +142,20 @@ def get_data_context() -> str:
         lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
 
     lines.append("")
-    lines.append("🔮 Forecast: Top 3 Products for Next Week")
-    for _, row in df_forecast.iterrows():
-        lines.append(f"- {row.Product_Name}: forecasted sales = {row.forecast_sum:,.0f}")
+    lines.append("🔝 Top 100 Sales Records by Revenue:")
+    for _, row in top_sales.iterrows():
+        lines.append(
+            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+        )
+
+    lines.append("")
+    lines.append("🔻 Bottom 100 Sales Records by Revenue:")
+    for _, row in bottom_sales.iterrows():
+        lines.append(
+            f"- {row.Order_Date[:10]} | {row.Product_Name} | Qty: {row.Quantity} | "
+            f"€{row.Total_Amount:.2f} | {row.Sales_Channel} | Unit: €{row.Unit_Price:.2f} | Group: {row.Product_Group}"
+        )
 
     return "\n".join(lines)
 
