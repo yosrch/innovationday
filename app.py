@@ -84,67 +84,71 @@ def load_table(query: str) -> pd.DataFrame:
 @st.cache_data(ttl=600)
 def get_data_context() -> str:
     """
-    Fetches current KPIs, segment sizes, ABC categories, and monthly revenue trends.
-    Returns as a single plaintext blob for LLM context.
+    Fetches current KPIs, segment sizes, ABC categories,
+    and weekly revenue per product from the last 6 weeks.
+    Returns a text blob for Claude context.
     """
-
-    # 1) KPIs
+    # 1. KPIs
     df_kpis = load_table("""
-      SELECT
-        SUM(Total_Amount)            AS total_revenue,
-        AVG(Total_Amount)            AS avg_order_value,
-        COUNT(DISTINCT Customer_ID)  AS unique_customers
-      FROM gold.fact_sales
+        SELECT
+            SUM(Total_Amount)            AS total_revenue,
+            AVG(Total_Amount)            AS avg_order_value,
+            COUNT(DISTINCT Customer_ID)  AS unique_customers
+        FROM gold.fact_sales
     """)
 
-    # 2) Segment sizes
+    # 2. Segment sizes
     seg_sizes = load_table("""
-      SELECT segment, COUNT(*) AS count
-      FROM gold.customer_segments
-      GROUP BY segment
-      ORDER BY segment
+        SELECT segment, COUNT(*) AS seg_count
+        FROM gold.customer_segments
+        GROUP BY segment
+        ORDER BY segment
     """)
-    total = seg_sizes["count"].sum()
+    total = seg_sizes["seg_count"].sum()
 
-    # 3) ABC categories
-    prod_abc = load_table("SELECT Product_Name, ABC_Category FROM gold.product_abc")
-
-    # 4) Revenue trend by ABC Category
-    rev_trend = load_table("""
-      SELECT
-        DATE_TRUNC('month', Order_Date) AS month,
-        ABC_Category,
-        SUM(Total_Amount) AS revenue
-      FROM gold.fact_sales
-      JOIN gold.product_abc USING (Product_Name)
-      GROUP BY 1, 2
-      ORDER BY 1 DESC, 2
+    # 3. ABC product categories
+    prod_abc = load_table("""
+        SELECT Product_Name, ABC_Category
+        FROM gold.product_abc
     """)
 
-    # Build plain-text context
+    # 4. Weekly product revenue (last 6 weeks)
+    weekly_rev = load_table("""
+        SELECT
+            Product_Name,
+            WEEK(Sale_Date) AS sales_week,
+            SUM(Total_Amount) AS revenue
+        FROM gold.fact_sales
+        WHERE Sale_Date >= DATE_SUB(CURRENT_DATE(), INTERVAL 6 WEEK)
+        GROUP BY Product_Name, WEEK(Sale_Date)
+        ORDER BY Product_Name, sales_week
+    """)
+
+    # --- Build lines ---
     lines = [
-        f"🧮 Total Revenue: €{df_kpis.total_revenue[0]:,.0f}",
-        f"📈 Avg Order Value: €{df_kpis.avg_order_value[0]:,.2f}",
-        f"👥 Unique Customers: {df_kpis.unique_customers[0]:,}",
+        f"🧮 Total Revenue: €{df_kpis.iloc[0]['total_revenue']:,.0f}",
+        f"📈 Avg Order Value: €{df_kpis.iloc[0]['avg_order_value']:,.2f}",
+        f"👥 Unique Customers: {df_kpis.iloc[0]['unique_customers']:,}",
         "",
-        "🔖 Segments:"
+        "🔖 Customer Segments:"
     ]
-
     for _, row in seg_sizes.iterrows():
-        pct = row["count"] / total * 100
-        lines.append(f"- Segment {int(row.segment)}: {int(row['count']):,} ({pct:.1f}%)")
+        pct = row["seg_count"] / total * 100
+        lines.append(f"- Segment {row.segment}: {row['seg_count']:,} ({pct:.1f}%)")
 
     lines.append("")
-    lines.append("📦 ABC Categories:")
+    lines.append("📦 Product Categories (ABC):")
     for _, row in prod_abc.iterrows():
         lines.append(f"- {row.Product_Name}: {row.ABC_Category}")
 
     lines.append("")
-    lines.append("📊 Revenue Trend by ABC Category (last 3 months):")
-    for _, row in rev_trend.iterrows():
-        lines.append(
-            f"- {row['month'].strftime('%b %Y')} / Category {row['ABC_Category']}: €{row['revenue']:,.0f}"
+    lines.append("📊 Weekly Revenue by Product:")
+    for product, group in weekly_rev.groupby("Product_Name"):
+        line = f"- {product}: " + ", ".join(
+            f"W{int(w)}: €{int(r):,}"
+            for w, r in zip(group.sales_week, group.revenue)
         )
+        lines.append(line)
 
     return "\n".join(lines)
 
